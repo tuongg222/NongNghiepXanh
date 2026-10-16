@@ -22,6 +22,9 @@ jobs:
       - name: Cai Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Chap nhan Android SDK licenses
+        run: yes | sdkmanager --licenses
+
       - name: Bien dich APK
         uses: gradle/gradle-build-action@v3
         with:
