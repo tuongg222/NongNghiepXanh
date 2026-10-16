@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#176b3a">
+<title>Nông Nghiệp Xanh</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f2f7f0;color:#203327;font-family:Arial,sans-serif}
+header{background:linear-gradient(135deg,#176b3a,#36a45e);color:white;padding:24px 18px 30px;border-radius:0 0 24px 24px}
+header h1{margin:0 0 8px;font-size:25px}
+header p{margin:0;opacity:.9}
+main{padding:16px;max-width:650px;margin:auto}
+.card{background:white;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 3px 12px #173d1710}
+h2{font-size:18px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:#e4f3e5;border-radius:13px;padding:14px 10px;text-align:center}
+.tile .emoji{font-size:27px}
+.tile b{display:block;margin-top:7px;font-size:14px}
+label{display:block;font-size:14px;margin:12px 0 6px}
+input,select,button{width:100%;padding:12px;border-radius:10px;border:1px solid #d5e1d4;font-size:16px}
+button{background:#218447;color:white;border:0;font-weight:bold;margin-top:12px}
+.result{background:#e5f5e8;padding:14px;border-radius:10px;margin-top:12px;line-height:1.8}
+small{color:#64756a}
+nav{display:flex;gap:8px;overflow:auto;margin-bottom:14px}
+nav button{min-width:max-content;width:auto;margin:0;padding:10px 13px;background:#dcebdd;color:#235336}
+nav button.active{background:#218447;color:white}
+.page{display:none}.page.active{display:block}
+footer{text-align:center;color:#718072;padding:12px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div style="font-size:34px">🌱</div>
+  <h1>Nông Nghiệp Xanh</h1>
+  <p>Trợ lý đồng hành cùng nhà nông Việt Nam</p>
+</header>
+<main>
+<nav>
+  <button class="active" onclick="showPage('home',this)">🏡 Tổng quan</button>
+  <button onclick="showPage('farm',this)">🌾 Ruộng lúa</button>
+  <button onclick="showPage('care',this)">📅 Chăm sóc</button>
+  <button onclick="showPage('calc',this)">⚖️ Tính tiền lúa</button>
+</nav>
+
+<section id="home" class="page active">
+  <div class="card">
+    <h2>Xin chào bà con! 👋</h2>
+    <p>Quản lý mùa vụ, ghi nhớ lịch chăm sóc và tính tiền nông sản ngay trên điện thoại.</p>
+    <small>Dữ liệu mùa vụ được lưu trên thiết bị này.</small>
+  </div>
+  <div class="grid">
+    <div class="tile"><div class="emoji">🌱</div><b>Quản lý mùa vụ</b></div>
+    <div class="tile"><div class="emoji">🌦️</div><b>Thời tiết</b></div>
+    <div class="tile"><div class="emoji">🔬</div><b>Hỗ trợ bệnh cây</b></div>
+    <div class="tile"><div class="emoji">💰</div><b>Thu chi nông trại</b></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>🤖 Trợ lý nông nghiệp AI</h2>
+    <p>Phần phân tích ảnh bệnh cây và gợi ý chăm sóc bằng AI sẽ được kết nối ở bước tiếp theo.</p>
+    <small>Không nên phun thuốc chỉ dựa vào một kết quả nhận diện tự động.</small>
+  </div>
+</section>
+
+<section id="farm" class="page">
+  <div class="card">
+    <h2>🌾 Thông tin ruộng lúa</h2>
+    <label>Tên ruộng</label><input id="fieldName" placeholder="Ví dụ: Ruộng sau nhà">
+    <label>Giống lúa</label><input id="variety" placeholder="Ví dụ: OM18">
+    <label>Diện tích (ha)</label><input id="area" type="number" min="0" step="0.01" placeholder="Ví dụ: 1.5">
+    <label>Ngày sạ</label><input id="sowDate" type="date">
+    <button onclick="saveFarm()">Lưu thông tin ruộng</button>
+    <div id="farmResult" class="result" style="display:none"></div>
+  </div>
+</section>
+
+<section id="care" class="page">
+  <div class="card">
+    <h2>📅 Lịch chăm sóc</h2>
+    <label>Công việc</label><input id="taskName" placeholder="Ví dụ: Kiểm tra sâu bệnh">
+    <label>Ngày thực hiện</label><input id="taskDate" type="date">
+    <button onclick="addTask()">Thêm công việc</button>
+  </div>
+  <div class="card">
+    <h2>Công việc đã ghi</h2>
+    <div id="taskList">Chưa có công việc nào.</div>
+  </div>
+</section>
+
+<section id="calc" class="page">
+  <div class="card">
+    <h2>⚖️ Tính tiền bán lúa</h2>
+    <label>Khối lượng lúa (kg)</label><input id="weight" type="number" min="0" step="0.1" placeholder="Ví dụ: 2500">
+    <label>Giá bán mỗi kg (đồng)</label><input id="price" type="number" min="0" step="100" placeholder="Ví dụ: 8500">
+    <label>Chi phí (đồng)</label><input id="cost" type="number" min="0" step="1000" value="0">
+    <button onclick="calculate()">Tính tiền</button>
+    <div id="calcResult" class="result" style="display:none"></div>
+    <small>Nhập giá mua bán thực tế của địa phương; giá chưa được tự động cập nhật.</small>
+  </div>
+</section>
+<footer>Nông Nghiệp Xanh · Phiên bản thử nghiệm 1.0</footer>
+</main>
+<script>
+function showPage(id,btn){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+ btn.classList.add('active');
+}
+function saveFarm(){
+ const data={name:fieldName.value,variety:variety.value,area:area.value,sowDate:sowDate.value};
+ localStorage.setItem('nx_farm',JSON.stringify(data));
+ farmResult.style.display='block';
+ farmResult.innerHTML='<b>Đã lưu thông tin ruộng!</b><br>Tên: '+esc(data.name||'Chưa nhập')+'<br>Giống: '+esc(data.variety||'Chưa nhập')+'<br>Diện tích: '+esc(data.area||'0')+' ha<br>Ngày sạ: '+esc(data.sowDate||'Chưa nhập');
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function loadFarm(){
+ const d=JSON.parse(localStorage.getItem('nx_farm')||'null');if(!d)return;
+ fieldName.value=d.name||'';variety.value=d.variety||'';area.value=d.area||'';sowDate.value=d.sowDate||'';
+}
+function getTasks(){return JSON.parse(localStorage.getItem('nx_tasks')||'[]');}
+function addTask(){
+ const name=taskName.value.trim(),date=taskDate.value;
+ if(!name||!date){alert('Bạn hãy nhập công việc và ngày thực hiện.');return;}
+ const tasks=getTasks();tasks.push({name,date,done:false});
+ localStorage.setItem('nx_tasks',JSON.stringify(tasks));taskName.value='';renderTasks();
+}
+function renderTasks(){
+ const tasks=getTasks();
+ taskList.innerHTML=tasks.length?tasks.map((t,i)=>'<div style="padding:10px 0;border-bottom:1px solid #eee"><label style="margin:0"><input style="width:auto" type="checkbox" '+(t.done?'checked':'')+' onchange="toggleTask('+i+',this.checked)"> '+esc(t.name)+'</label><small>'+esc(t.date)+'</small> <button style="width:auto;padding:6px 10px;margin:5px 0" onclick="deleteTask('+i+')">Xóa</button></div>').join(''):'Chưa có công việc nào.';
+}
+function toggleTask(i,v){const a=getTasks();a[i].done=v;localStorage.setItem('nx_tasks',JSON.stringify(a));renderTasks();}
+function deleteTask(i){const a=getTasks();a.splice(i,1);localStorage.setItem('nx_tasks',JSON.stringify(a));renderTasks();}
+function calculate(){
+ const w=Number(weight.value),p=Number(price.value),c=Number(cost.value||0);
+ if(weight.value===''||price.value===''||w<0||p<0||c<0){alert('Vui lòng nhập số liệu hợp lệ.');return;}
+ const revenue=w*p,profit=revenue-c;
+ calcResult.style.display='block';
+ calcResult.innerHTML='Khối lượng: <b>'+w.toLocaleString('vi-VN')+' kg</b><br>Tiền bán: <b>'+revenue.toLocaleString('vi-VN')+' đ</b><br>Chi phí: <b>'+c.toLocaleString('vi-VN')+' đ</b><hr>Lãi/lỗ tạm tính: <b>'+profit.toLocaleString('vi-VN')+' đ</b>';
+}
+loadFarm();renderTasks();
+</script>
+</body>
+</html>
