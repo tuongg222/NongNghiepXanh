@@ -42,6 +42,7 @@ footer{text-align:center;color:#718072;padding:12px;font-size:12px}
   <button onclick="showPage('farm',this)">🌾 Ruộng lúa</button>
   <button onclick="showPage('care',this)">📅 Chăm sóc</button>
   <button onclick="showPage('calc',this)">⚖️ Tính tiền lúa</button>
+  <button onclick="showPage('finance',this)">💰 Sổ thu chi</button>
   <button onclick="showPage('disease',this)">🔬 Bệnh lúa AI</button>
 </nav>
 
@@ -89,20 +90,49 @@ footer{text-align:center;color:#718072;padding:12px;font-size:12px}
   </div>
 </section>
 
-
-<section id="disease" class="page">
+<section id="finance" class="page">
   <div class="card">
-    <h2>🌾 Chẩn đoán bệnh lúa bằng AI</h2>
-    <p>Chụp ảnh lá lúa, thân lúa hoặc bông lúa có dấu hiệu bất thường.</p>
+    <h2>💰 Sổ thu chi nông trại</h2>
 
-    <label>Chọn ảnh hoặc chụp ảnh bệnh lúa</label>
-    <input id="diseasePhoto" type="file" accept="image/*" capture="environment">
+    <label>Loại giao dịch</label>
+    <select id="txType">
+      <option value="income">Thu tiền</option>
+      <option value="expense">Chi tiền</option>
+    </select>
 
-    <div id="photoPreview" style="margin-top:12px"></div>
+    <label>Danh mục</label>
+    <select id="txCategory">
+      <option value="Bán lúa">Bán lúa</option>
+      <option value="Phân bón">Phân bón</option>
+      <option value="Thuốc bảo vệ thực vật">Thuốc bảo vệ thực vật</option>
+      <option value="Giống lúa">Giống lúa</option>
+      <option value="Thuê nhân công">Thuê nhân công</option>
+      <option value="Nhiên liệu">Nhiên liệu</option>
+      <option value="Khác">Khác</option>
+    </select>
 
-    <button onclick="saveDiseasePhoto()">💾 Lưu ảnh để phân tích sau</button>
+    <label>Ngày giao dịch</label>
+    <input id="txDate" type="date">
 
-    <div id="diseaseStatus" class="result" style="display:none"></div>
+    <label>Nội dung</label>
+    <input id="txNote" placeholder="Ví dụ: Bán 2 tấn lúa OM18">
+
+    <label>Số tiền (đồng)</label>
+    <input id="txAmount" type="number" min="0" step="1000" placeholder="Ví dụ: 17000000">
+
+    <button onclick="addTransaction()">💾 Lưu giao dịch</button>
+  </div>
+
+  <div class="card">
+    <h2>📊 Tổng kết thu chi</h2>
+    <p>Tổng thu: <b id="txIncome">0 đ</b></p>
+    <p>Tổng chi: <b id="txExpense">0 đ</b></p>
+    <p>Lãi/lỗ: <b id="txProfit">0 đ</b></p>
+  </div>
+
+  <div class="card">
+    <h2>📒 Lịch sử giao dịch</h2>
+    <div id="txList">Chưa có giao dịch nào.</div>
   </div>
 </section>
 
@@ -254,6 +284,110 @@ function loadDiseasePhotos() {
 }
 
 loadDiseasePhotos();
+
+
+function getTransactions() {
+  try {
+    return JSON.parse(localStorage.getItem('nx_transactions') || '[]');
+  } catch (error) {
+    return [];
+  }
+}
+
+function addTransaction() {
+  const type = document.getElementById('txType').value;
+  const category = document.getElementById('txCategory').value;
+  const date = document.getElementById('txDate').value;
+  const note = document.getElementById('txNote').value.trim();
+  const amount = Number(document.getElementById('txAmount').value);
+
+  if (!date || !note || document.getElementById('txAmount').value === '' || !Number.isFinite(amount) || amount <= 0) {
+    alert('Bạn hãy nhập ngày, nội dung và số tiền lớn hơn 0 nhé.');
+    return;
+  }
+
+  const transactions = getTransactions();
+  transactions.push({
+    type: type,
+    category: category,
+    date: date,
+    note: note,
+    amount: amount
+  });
+
+  try {
+    localStorage.setItem('nx_transactions', JSON.stringify(transactions));
+  } catch (error) {
+    alert('Không lưu được giao dịch. Bộ nhớ có thể đã đầy.');
+    return;
+  }
+
+  document.getElementById('txNote').value = '';
+  document.getElementById('txAmount').value = '';
+  renderTransactions();
+  alert('Đã lưu giao dịch!');
+}
+
+function deleteTransaction(index) {
+  if (!confirm('Bạn có chắc muốn xóa giao dịch này không?')) return;
+
+  const transactions = getTransactions();
+  transactions.splice(index, 1);
+  localStorage.setItem('nx_transactions', JSON.stringify(transactions));
+  renderTransactions();
+}
+
+function renderTransactions() {
+  const transactions = getTransactions();
+  let income = 0;
+  let expense = 0;
+
+  transactions.forEach(function (t) {
+    if (t.type === 'income') {
+      income += Number(t.amount) || 0;
+    } else {
+      expense += Number(t.amount) || 0;
+    }
+  });
+
+  document.getElementById('txIncome').textContent =
+    income.toLocaleString('vi-VN') + ' đ';
+  document.getElementById('txExpense').textContent =
+    expense.toLocaleString('vi-VN') + ' đ';
+
+  const profit = income - expense;
+  const profitElement = document.getElementById('txProfit');
+  profitElement.textContent = profit.toLocaleString('vi-VN') + ' đ';
+  profitElement.style.color = profit >= 0 ? 'green' : 'red';
+
+  const list = document.getElementById('txList');
+
+  if (transactions.length === 0) {
+    list.textContent = 'Chưa có giao dịch nào.';
+    return;
+  }
+
+  list.innerHTML = transactions.map(function (t, i) {
+    const isIncome = t.type === 'income';
+    const sign = isIncome ? '+' : '-';
+    const color = isIncome ? 'green' : 'red';
+
+    return '<div style="padding:12px 0;border-bottom:1px solid #eee">' +
+      '<b>' + esc(t.note) + '</b><br>' +
+      '<small>' + esc(t.date) + ' · ' + esc(t.category) + '</small><br>' +
+      '<b style="color:' + color + '">' + sign +
+      (Number(t.amount) || 0).toLocaleString('vi-VN') + ' đ</b><br>' +
+      '<button style="width:auto;padding:6px 10px;margin-top:6px" onclick="deleteTransaction(' +
+      i + ')">Xóa</button>' +
+      '</div>';
+  }).join('');
+}
+
+document.getElementById('txDate').value =
+  new Date().toLocaleDateString('sv-SE');
+
+renderTransactions();
+
 
 loadFarm();renderTasks();
 </script>
