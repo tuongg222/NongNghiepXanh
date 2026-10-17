@@ -187,6 +187,37 @@ footer{text-align:center;color:#718072;padding:12px;font-size:12px}
     <small>Nhập giá mua bán thực tế của địa phương; giá chưa được tự động cập nhật.</small>
   </div>
 </section>
+
+<section id="disease" class="page">
+  <div class="card">
+    <h2>🔬 Kiểm tra bệnh lúa</h2>
+    <p>Chụp ảnh lá, thân hoặc bông lúa để lưu lại và theo dõi.</p>
+
+    <label for="diseaseFarm">Chọn ruộng</label>
+    <select id="diseaseFarm">
+      <option value="">Chưa gắn ruộng</option>
+    </select>
+
+    <label for="diseasePhoto">Chụp hoặc chọn ảnh cây lúa</label>
+    <input id="diseasePhoto" type="file" accept="image/*" capture="environment">
+
+    <div id="photoPreview"></div>
+
+    <button onclick="saveDiseasePhoto()">💾 Lưu ảnh bệnh</button>
+    <div id="diseaseStatus" class="result" style="display:none"></div>
+
+    <hr>
+    <h3>📷 Lịch sử ảnh</h3>
+    <label for="diseaseHistoryFarm">Lọc lịch sử theo ruộng</label>
+    <select id="diseaseHistoryFarm" onchange="loadDiseasePhotos()">
+      <option value="">Tất cả ruộng</option>
+    </select>
+    <div id="diseaseHistory">Chưa có lịch sử ảnh.</div>
+
+    <small>Hiện AI chưa được kết nối. Ứng dụng chỉ lưu ảnh, chưa thể tự xác định bệnh hoặc khuyến nghị thuốc.</small>
+  </div>
+</section>
+
 <footer>Nông Nghiệp Xanh · Phiên bản thử nghiệm 1.0</footer>
 </main>
 <script>
@@ -503,12 +534,54 @@ function calculate(){
 const diseasePhoto = document.getElementById('diseasePhoto');
 const photoPreview = document.getElementById('photoPreview');
 const diseaseStatus = document.getElementById('diseaseStatus');
+const diseaseFarm = document.getElementById('diseaseFarm');
+const diseaseHistoryFarm = document.getElementById('diseaseHistoryFarm');
+const diseaseHistory = document.getElementById('diseaseHistory');
 
 let selectedDiseaseImage = null;
 
+function renderDiseaseFarmOptions() {
+  const farms = getFarms();
+  const currentFarm = diseaseFarm.value;
+  const currentFilter = diseaseHistoryFarm.value;
+
+  diseaseFarm.replaceChildren();
+  const noFarm = document.createElement('option');
+  noFarm.value = '';
+  noFarm.textContent = 'Chưa gắn ruộng';
+  diseaseFarm.appendChild(noFarm);
+
+  diseaseHistoryFarm.replaceChildren();
+  const allFarms = document.createElement('option');
+  allFarms.value = '';
+  allFarms.textContent = 'Tất cả ruộng';
+  diseaseHistoryFarm.appendChild(allFarms);
+
+  farms.forEach(farm => {
+    const id = String(farm.id);
+    const name = farm.name || 'Ruộng chưa đặt tên';
+
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = name;
+    diseaseFarm.appendChild(option);
+
+    const filterOption = document.createElement('option');
+    filterOption.value = id;
+    filterOption.textContent = name;
+    diseaseHistoryFarm.appendChild(filterOption);
+  });
+
+  if ([...diseaseFarm.options].some(o => o.value === currentFarm)) {
+    diseaseFarm.value = currentFarm;
+  }
+  if ([...diseaseHistoryFarm.options].some(o => o.value === currentFilter)) {
+    diseaseHistoryFarm.value = currentFilter;
+  }
+}
+
 diseasePhoto.addEventListener('change', function () {
   const file = this.files && this.files[0];
-
   if (!file) return;
 
   if (!file.type.startsWith('image/')) {
@@ -524,7 +597,6 @@ diseasePhoto.addEventListener('change', function () {
   }
 
   const reader = new FileReader();
-
   reader.onload = function (event) {
     selectedDiseaseImage = {
       name: file.name,
@@ -534,7 +606,7 @@ diseasePhoto.addEventListener('change', function () {
       status: 'waiting'
     };
 
-    photoPreview.innerHTML = '';
+    photoPreview.replaceChildren();
     const img = document.createElement('img');
     img.src = selectedDiseaseImage.data;
     img.alt = 'Ảnh cây lúa cần kiểm tra';
@@ -545,10 +617,8 @@ diseasePhoto.addEventListener('change', function () {
     photoPreview.appendChild(img);
 
     diseaseStatus.style.display = 'block';
-    diseaseStatus.textContent =
-      'Đã chọn ảnh. Nhấn nút lưu để giữ ảnh chờ phân tích.';
+    diseaseStatus.textContent = 'Đã chọn ảnh. Nhấn nút lưu để lưu vào lịch sử.';
   };
-
   reader.readAsDataURL(file);
 });
 
@@ -558,39 +628,96 @@ function saveDiseasePhoto() {
     return;
   }
 
+  const farmId = diseaseFarm.value;
+  const farm = getFarms().find(f => String(f.id) === farmId);
+
+  const photo = {
+    ...selectedDiseaseImage,
+    farmId: farm ? farm.id : '',
+    farmName: farm ? (farm.name || 'Ruộng chưa đặt tên') : 'Chưa gắn ruộng'
+  };
+
   try {
-    const saved = JSON.parse(
-      localStorage.getItem('nx_disease_photos') || '[]'
-    );
+    const saved = JSON.parse(localStorage.getItem('nx_disease_photos') || '[]');
+    if (!Array.isArray(saved)) throw new Error('Dữ liệu ảnh không hợp lệ');
 
-    saved.push(selectedDiseaseImage);
+    saved.push(photo);
     localStorage.setItem('nx_disease_photos', JSON.stringify(saved));
-
-    diseaseStatus.style.display = 'block';
-    diseaseStatus.textContent =
-      'Đã lưu ảnh trên điện thoại để chờ phân tích khi có Internet. Hiện AI chưa được kết nối.';
 
     selectedDiseaseImage = null;
     diseasePhoto.value = '';
+    photoPreview.replaceChildren();
+
+    diseaseStatus.style.display = 'block';
+    diseaseStatus.textContent =
+      'Đã lưu ảnh' + (farm ? ' cho ruộng "' + farm.name + '"' : '') +
+      '. AI chưa được kết nối nên ảnh chưa được chẩn đoán.';
+
+    loadDiseasePhotos();
   } catch (error) {
     alert('Không lưu được ảnh. Bộ nhớ trình duyệt có thể đã đầy.');
   }
 }
 
 function loadDiseasePhotos() {
+  renderDiseaseFarmOptions();
+
   try {
-    const saved = JSON.parse(
-      localStorage.getItem('nx_disease_photos') || '[]'
+    const saved = JSON.parse(localStorage.getItem('nx_disease_photos') || '[]');
+    const photos = Array.isArray(saved) ? saved : [];
+
+    diseaseStatus.style.display = 'block';
+    diseaseStatus.textContent = photos.length
+      ? 'Đang lưu ' + photos.length + ' ảnh trên thiết bị. AI chưa được kết nối.'
+      : 'Chưa có ảnh nào được lưu.';
+
+    diseaseHistory.replaceChildren();
+
+    const filterId = diseaseHistoryFarm.value;
+    const filtered = photos.filter(photo =>
+      !filterId || String(photo.farmId || '') === filterId
     );
 
-    if (saved.length > 0) {
-      diseaseStatus.style.display = 'block';
-      diseaseStatus.textContent =
-        'Có ' + saved.length +
-        ' ảnh đang lưu trên thiết bị để chờ phân tích.';
+    if (!filtered.length) {
+      diseaseHistory.textContent = 'Chưa có ảnh trong mục này.';
+      return;
     }
+
+    filtered.slice().reverse().forEach(photo => {
+      const card = document.createElement('div');
+      card.style.padding = '12px 0';
+      card.style.borderBottom = '1px solid #ddd';
+
+      if (photo.data) {
+        const img = document.createElement('img');
+        img.src = photo.data;
+        img.alt = 'Ảnh đã lưu: ' + (photo.name || 'ảnh cây lúa');
+        img.style.width = '100%';
+        img.style.maxHeight = '220px';
+        img.style.objectFit = 'contain';
+        img.style.borderRadius = '10px';
+        card.appendChild(img);
+      }
+
+      const info = document.createElement('p');
+      const date = photo.date ? new Date(photo.date) : null;
+      const dateText = date && !Number.isNaN(date.getTime())
+        ? date.toLocaleString('vi-VN')
+        : 'Không rõ ngày lưu';
+
+      info.textContent =
+        (photo.name || 'Ảnh cây lúa') + ' · ' + dateText +
+        ' · Ruộng: ' + (photo.farmName || 'Chưa gắn ruộng');
+      card.appendChild(info);
+
+      const status = document.createElement('small');
+      status.textContent = 'Trạng thái: Chờ phân tích — AI chưa kết nối.';
+      card.appendChild(status);
+      diseaseHistory.appendChild(card);
+    });
   } catch (error) {
-    console.error('Không đọc được danh sách ảnh:', error);
+    diseaseHistory.textContent = 'Không đọc được lịch sử ảnh trên thiết bị.';
+    console.error('Không đọc được lịch sử ảnh:', error);
   }
 }
 
