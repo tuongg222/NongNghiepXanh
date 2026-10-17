@@ -320,10 +320,40 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 function getTasks(){
  try {
   const tasks = JSON.parse(localStorage.getItem('nx_tasks') || '[]');
-  return Array.isArray(tasks) ? tasks : [];
+  if (!Array.isArray(tasks)) return [];
+  let changed = false;
+  tasks.forEach((task, i) => {
+   if (!task.id) {
+    task.id = 'care_' + Date.now() + '_' + i;
+    changed = true;
+   }
+  });
+  if (changed) localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+  return tasks;
  } catch (error) {
   return [];
  }
+}
+
+function syncCareReminder(task){
+ if (!task || !task.id || !task.date || task.done) return;
+ if (window.AndroidCare && typeof window.AndroidCare.scheduleReminder === 'function'){
+  window.AndroidCare.scheduleReminder(String(task.id), String(task.name || 'Chăm sóc ruộng lúa'), String(task.date));
+ }
+}
+
+function cancelCareReminder(task){
+ if (!task || !task.id) return;
+ if (window.AndroidCare && typeof window.AndroidCare.cancelReminder === 'function'){
+  window.AndroidCare.cancelReminder(String(task.id));
+ }
+}
+
+function syncAllCareReminders(){
+ getTasks().forEach(task => {
+  if (task.done) cancelCareReminder(task);
+  else syncCareReminder(task);
+ });
 }
 
 function renderTaskFarmOptions(){
@@ -349,7 +379,7 @@ function addTask(){
   return;
  }
  const tasks = getTasks();
- const task = {name:name, date:date, done:false, type:type};
+ const task = {id:'care_' + Date.now() + '_' + Math.random().toString(36).slice(2), name:name, date:date, done:false, type:type};
  if (farmValue !== '') {
   task.farmId = Number(farmValue);
   const farm = getFarms().find(f => f.id === task.farmId);
@@ -362,6 +392,7 @@ function addTask(){
   alert('Không lưu được lịch. Bộ nhớ có thể đã đầy.');
   return;
  }
+ syncCareReminder(task);
  document.getElementById('taskName').value = '';
  renderTasks();
 }
@@ -429,12 +460,16 @@ function toggleTask(i, value){
  if (!tasks[i]) return;
  tasks[i].done = value;
  localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+ if (value) cancelCareReminder(tasks[i]);
+ else syncCareReminder(tasks[i]);
  renderTasks();
 }
 
 function deleteTask(i){
  if (!confirm('Bạn có chắc muốn xóa công việc này không?')) return;
  const tasks = getTasks();
+ if (!tasks[i]) return;
+ cancelCareReminder(tasks[i]);
  tasks.splice(i, 1);
  localStorage.setItem('nx_tasks', JSON.stringify(tasks));
  renderTasks();
@@ -647,7 +682,7 @@ document.getElementById('txDate').value =
 renderTransactions();
 
 
-loadFarm();renderTaskFarmOptions();renderTasks();
+loadFarm();renderTaskFarmOptions();renderTasks();syncAllCareReminders();
 </script>
 </body>
 </html>

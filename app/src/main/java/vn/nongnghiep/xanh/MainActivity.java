@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        webView.addJavascriptInterface(new CareReminderBridge(this), "AndroidCare");
 
         webView.setWebViewClient(new WebViewClient());
 
