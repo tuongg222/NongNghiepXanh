@@ -75,6 +75,12 @@ footer{text-align:center;color:#718072;padding:12px;font-size:12px}
     <button onclick="saveFarm()">Lưu thông tin ruộng</button>
     <div id="farmResult" class="result" style="display:none"></div>
   </div>
+
+  <div class="card">
+    <h2>📋 Danh sách ruộng lúa</h2>
+    <p>Quản lý thông tin từng ruộng của gia đình.</p>
+    <div id="farmList">Đang tải danh sách ruộng...</div>
+  </div>
 </section>
 
 <section id="care" class="page">
@@ -157,17 +163,145 @@ function showPage(id,btn){
  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
  btn.classList.add('active');
 }
+function getFarms(){
+ try {
+  const saved = JSON.parse(localStorage.getItem('nx_farms') || 'null');
+  if (Array.isArray(saved)) return saved;
+  const old = JSON.parse(localStorage.getItem('nx_farm') || 'null');
+  if (old && typeof old === 'object') {
+   const migrated = [{...old, id: Date.now()}];
+   localStorage.setItem('nx_farms', JSON.stringify(migrated));
+   return migrated;
+  }
+  return [];
+ } catch (error) {
+  alert('Không đọc được dữ liệu ruộng. Dữ liệu cũ vẫn được giữ nguyên.');
+  return [];
+ }
+}
+let editingFarmId = null;
+
 function saveFarm(){
- const data={name:fieldName.value,variety:variety.value,area:area.value,sowDate:sowDate.value};
- localStorage.setItem('nx_farm',JSON.stringify(data));
- farmResult.style.display='block';
- farmResult.innerHTML='<b>Đã lưu thông tin ruộng!</b><br>Tên: '+esc(data.name||'Chưa nhập')+'<br>Giống: '+esc(data.variety||'Chưa nhập')+'<br>Diện tích: '+esc(data.area||'0')+' ha<br>Ngày sạ: '+esc(data.sowDate||'Chưa nhập');
+ const data = {
+  name: fieldName.value.trim(),
+  variety: variety.value.trim(),
+  area: area.value,
+  sowDate: sowDate.value
+ };
+ if (!data.name) {
+  alert('Bạn hãy nhập tên ruộng nhé.');
+  fieldName.focus();
+  return;
+ }
+ if (data.area !== '' && (!Number.isFinite(Number(data.area)) || Number(data.area) <= 0)) {
+  alert('Diện tích phải lớn hơn 0.');
+  area.focus();
+  return;
+ }
+ const farms = getFarms();
+ if (editingFarmId !== null) {
+  const index = farms.findIndex(f => f.id === editingFarmId);
+  if (index < 0) {
+   alert('Không tìm thấy ruộng cần sửa. Vui lòng tải lại danh sách.');
+   return;
+  }
+  farms[index] = {...farms[index], ...data};
+ } else {
+  data.id = Date.now();
+  farms.push(data);
+ }
+ try {
+  localStorage.setItem('nx_farms', JSON.stringify(farms));
+ } catch (error) {
+  alert('Không lưu được. Bộ nhớ có thể đã đầy.');
+  return;
+ }
+ editingFarmId = null;
+ fieldName.value = '';
+ variety.value = '';
+ area.value = '';
+ sowDate.value = '';
+ farmResult.style.display = 'block';
+ farmResult.textContent = 'Đã lưu thông tin ruộng!';
+ const saveButton = document.querySelector('#farm button');
+ if (saveButton) saveButton.textContent = 'Lưu thông tin ruộng';
+ renderFarms();
+}
+
+function renderFarms(){
+ const list = document.getElementById('farmList');
+ if (!list) return;
+ const farms = getFarms();
+ if (!farms.length) {
+  list.textContent = 'Chưa có ruộng nào. Hãy nhập thông tin ở phía trên.';
+  return;
+ }
+ list.innerHTML = farms.map(f =>
+  '<div style="padding:12px 0;border-bottom:1px solid #eee">' +
+  '<b>🌾 ' + esc(f.name || 'Chưa đặt tên') + '</b><br>' +
+  '<small>Giống: ' + esc(f.variety || 'Chưa nhập') +
+  ' · Diện tích: ' + esc(f.area || '0') + ' ha</small><br>' +
+  '<small>Ngày sạ: ' + esc(f.sowDate || 'Chưa nhập') + '</small><br>' +
+  '<button style="width:auto;padding:8px 12px" onclick="editFarm(' + Number(f.id) + ')">Sửa</button> ' +
+  '<button style="width:auto;padding:8px 12px;background:#b83232" onclick="deleteFarm(' + Number(f.id) + ')">Xóa</button>' +
+  '</div>'
+ ).join('');
+}
+
+function editFarm(id){
+ const farm = getFarms().find(f => f.id === id);
+ if (!farm) {
+  alert('Không tìm thấy ruộng.');
+  return;
+ }
+ editingFarmId = id;
+ fieldName.value = farm.name || '';
+ variety.value = farm.variety || '';
+ area.value = farm.area || '';
+ sowDate.value = farm.sowDate || '';
+ const saveButton = document.querySelector('#farm button');
+ if (saveButton) saveButton.textContent = 'Lưu thay đổi';
+ document.getElementById('farmResult').style.display = 'block';
+ document.getElementById('farmResult').textContent = 'Đang sửa: ' + farm.name;
+ document.getElementById('farm').scrollIntoView({behavior:'smooth'});
+}
+
+function deleteFarm(id){
+ const farms = getFarms();
+ const farm = farms.find(f => f.id === id);
+ if (!farm) return;
+ if (!confirm('Bạn có chắc muốn xóa ruộng "' + farm.name + '" không?')) return;
+ const updated = farms.filter(f => f.id !== id);
+ try {
+  localStorage.setItem('nx_farms', JSON.stringify(updated));
+ } catch (error) {
+  alert('Không thể cập nhật danh sách ruộng.');
+  return;
+ }
+ if (editingFarmId === id) {
+  editingFarmId = null;
+  fieldName.value = '';
+  variety.value = '';
+  area.value = '';
+  sowDate.value = '';
+  const saveButton = document.querySelector('#farm button');
+  if (saveButton) saveButton.textContent = 'Lưu thông tin ruộng';
+ }
+ renderFarms();
+}
+
+function loadFarm(){
+ const farms = getFarms();
+ if (farms.length) {
+  const d = farms[0];
+  fieldName.value = d.name || '';
+  variety.value = d.variety || '';
+  area.value = d.area || '';
+  sowDate.value = d.sowDate || '';
+ }
+ renderFarms();
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function loadFarm(){
- const d=JSON.parse(localStorage.getItem('nx_farm')||'null');if(!d)return;
- fieldName.value=d.name||'';variety.value=d.variety||'';area.value=d.area||'';sowDate.value=d.sowDate||'';
-}
 function getTasks(){return JSON.parse(localStorage.getItem('nx_tasks')||'[]');}
 function addTask(){
  const name=taskName.value.trim(),date=taskDate.value;
