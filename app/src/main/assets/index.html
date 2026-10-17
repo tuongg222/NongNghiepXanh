@@ -40,6 +40,7 @@ footer{text-align:center;color:#718072;padding:12px;font-size:12px}
 <nav>
   <button class="active" onclick="showPage('home',this)">🏡 Tổng quan</button>
   <button onclick="showPage('farm',this)">🌾 Ruộng lúa</button>
+  <button onclick="showPage('weather',this);loadWeather()">🌦️ Thời tiết</button>
   <button onclick="showPage('care',this)">📅 Chăm sóc</button>
   <button onclick="showPage('calc',this)">⚖️ Tính tiền lúa</button>
   <button onclick="showPage('finance',this)">💰 Sổ thu chi</button>
@@ -63,6 +64,23 @@ footer{text-align:center;color:#718072;padding:12px;font-size:12px}
     <p>Phần phân tích ảnh bệnh cây và gợi ý chăm sóc bằng AI sẽ được kết nối ở bước tiếp theo.</p>
     <small>Không nên phun thuốc chỉ dựa vào một kết quả nhận diện tự động.</small>
   </div>
+</section>
+
+
+<section id="weather" class="page">
+  <div class="card">
+    <h2>🌦️ Thời tiết khu vực ruộng</h2>
+    <p>Theo dõi thời tiết để chủ động chăm sóc cây trồng.</p>
+    <label>Vĩ độ</label>
+    <input id="weatherLat" type="number" step="any" value="10.03" placeholder="Ví dụ: 10.03">
+    <label>Kinh độ</label>
+    <input id="weatherLon" type="number" step="any" value="105.78" placeholder="Ví dụ: 105.78">
+    <button onclick="loadWeather()">🔄 Cập nhật thời tiết</button>
+    <small>Tọa độ mặc định là vị trí thử nghiệm gần Cần Thơ. Hãy thay bằng tọa độ ruộng của bạn.</small>
+    <div id="weatherStatus" class="result">Nhấn “Cập nhật thời tiết” để tải dữ liệu.</div>
+  </div>
+  <div id="weatherCurrent" class="card" style="display:none"></div>
+  <div id="weatherForecast" class="card" style="display:none"></div>
 </section>
 
 <section id="farm" class="page">
@@ -683,6 +701,103 @@ renderTransactions();
 
 
 loadFarm();renderTaskFarmOptions();renderTasks();syncAllCareReminders();
+
+async function loadWeather(){
+  const latInput = document.getElementById('weatherLat');
+  const lonInput = document.getElementById('weatherLon');
+  const status = document.getElementById('weatherStatus');
+  const currentBox = document.getElementById('weatherCurrent');
+  const forecastBox = document.getElementById('weatherForecast');
+
+  if(!latInput || !lonInput || !status || !currentBox || !forecastBox){
+    console.error('Không tìm thấy giao diện thời tiết.');
+    return;
+  }
+
+  const lat = Number(latInput.value);
+  const lon = Number(lonInput.value);
+
+  if(latInput.value.trim()==='' || lonInput.value.trim()==='' ||
+     !Number.isFinite(lat) || !Number.isFinite(lon) ||
+     lat < -90 || lat > 90 || lon < -180 || lon > 180){
+    status.textContent = 'Vui lòng nhập vĩ độ từ -90 đến 90 và kinh độ từ -180 đến 180.';
+    return;
+  }
+
+  status.textContent = 'Đang tải dữ liệu thời tiết...';
+  currentBox.style.display = 'none';
+  forecastBox.style.display = 'none';
+
+  const descriptions = {
+    0:'Trời quang',1:'Ít mây',2:'Có mây',3:'Nhiều mây',
+    45:'Có sương mù',48:'Sương mù dày',
+    51:'Mưa phùn nhẹ',53:'Mưa phùn vừa',55:'Mưa phùn dày',
+    56:'Mưa phùn lạnh nhẹ',57:'Mưa phùn lạnh dày',
+    61:'Mưa nhẹ',63:'Mưa vừa',65:'Mưa to',
+    66:'Mưa lạnh nhẹ',67:'Mưa lạnh to',
+    71:'Tuyết nhẹ',73:'Tuyết vừa',75:'Tuyết dày',77:'Mưa tuyết',
+    80:'Mưa rào nhẹ',81:'Mưa rào vừa',82:'Mưa rào mạnh',
+    85:'Mưa tuyết nhẹ',86:'Mưa tuyết mạnh',
+    95:'Có dông',96:'Dông có mưa đá nhẹ',99:'Dông có mưa đá mạnh'
+  };
+
+  try{
+    const url = 'https://api.open-meteo.com/v1/forecast?' +
+      new URLSearchParams({
+        latitude:String(lat),
+        longitude:String(lon),
+        current:'temperature_2m,relative_humidity_2m,precipitation,weather_code',
+        daily:'precipitation_probability_max,temperature_2m_max,temperature_2m_min',
+        timezone:'Asia/Ho_Chi_Minh',
+        forecast_days:'7'
+      }).toString();
+
+    const response = await fetch(url);
+    if(!response.ok) throw new Error('Máy chủ thời tiết trả về mã ' + response.status);
+    const data = await response.json();
+
+    if(!data.current || !data.daily) throw new Error('Dữ liệu thời tiết không đầy đủ.');
+
+    const c = data.current;
+    const d = data.daily;
+    const code = Number(c.weather_code);
+    const description = descriptions[code] || 'Chưa xác định';
+    const fmt = n => Number.isFinite(Number(n)) ? Number(n).toLocaleString('vi-VN',{maximumFractionDigits:1}) : '--';
+    const escWeather = v => String(v).replace(/[&<>"']/g, ch => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[ch]));
+
+    currentBox.innerHTML =
+      '<h3>🌤️ Thời tiết hiện tại</h3>' +
+      '<p><b>' + escWeather(description) + '</b></p>' +
+      '<p>🌡️ Nhiệt độ: <b>' + fmt(c.temperature_2m) + ' °C</b></p>' +
+      '<p>💧 Độ ẩm: <b>' + fmt(c.relative_humidity_2m) + '%</b></p>' +
+      '<p>🌧️ Lượng mưa: <b>' + fmt(c.precipitation) + ' mm</b></p>' +
+      '<small>Thời điểm dữ liệu: ' + escWeather(c.time || '') + '</small>';
+    currentBox.style.display = 'block';
+
+    let rows = '';
+    for(let i=0;i<(d.time || []).length;i++){
+      rows += '<tr><td>' + escWeather(d.time[i]) + '</td>' +
+        '<td>' + fmt(d.temperature_2m_min[i]) + ' °C</td>' +
+        '<td>' + fmt(d.temperature_2m_max[i]) + ' °C</td>' +
+        '<td>' + fmt(d.precipitation_probability_max[i]) + '%</td></tr>';
+    }
+
+    forecastBox.innerHTML =
+      '<h3>📅 Dự báo 7 ngày</h3>' +
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">' +
+      '<thead><tr><th>Ngày</th><th>Thấp nhất</th><th>Cao nhất</th><th>Khả năng mưa</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>' +
+      '<small>Nguồn dữ liệu: Open-Meteo. Dự báo chỉ mang tính tham khảo.</small>';
+    forecastBox.style.display = 'block';
+    status.textContent = 'Đã cập nhật thời tiết thành công!';
+  }catch(error){
+    console.error('Lỗi thời tiết:', error);
+    status.textContent = 'Không tải được thời tiết. Hãy kiểm tra Internet và thử lại. Chi tiết: ' + error.message;
+  }
+}
+
 </script>
 </body>
 </html>
