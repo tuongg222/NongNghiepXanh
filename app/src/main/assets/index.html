@@ -86,8 +86,23 @@ footer{text-align:center;color:#718072;padding:12px;font-size:12px}
 <section id="care" class="page">
   <div class="card">
     <h2>📅 Lịch chăm sóc</h2>
-    <label>Công việc</label><input id="taskName" placeholder="Ví dụ: Kiểm tra sâu bệnh">
-    <label>Ngày thực hiện</label><input id="taskDate" type="date">
+    <label>Chọn ruộng</label>
+    <select id="taskFarm">
+      <option value="">Tất cả ruộng / chưa chọn</option>
+    </select>
+    <label>Loại công việc</label>
+    <select id="taskType">
+      <option value="Bón phân">Bón phân</option>
+      <option value="Phun thuốc">Phun thuốc</option>
+      <option value="Kiểm tra sâu bệnh">Kiểm tra sâu bệnh</option>
+      <option value="Tưới nước">Tưới nước</option>
+      <option value="Thu hoạch">Thu hoạch</option>
+      <option value="Khác">Khác</option>
+    </select>
+    <label>Nội dung công việc</label>
+    <input id="taskName" placeholder="Ví dụ: Bón phân đợt 1">
+    <label>Ngày thực hiện</label>
+    <input id="taskDate" type="date">
     <button onclick="addTask()">Thêm công việc</button>
   </div>
   <div class="card">
@@ -302,19 +317,94 @@ function loadFarm(){
  renderFarms();
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function getTasks(){return JSON.parse(localStorage.getItem('nx_tasks')||'[]');}
+function getTasks(){
+ try {
+  const tasks = JSON.parse(localStorage.getItem('nx_tasks') || '[]');
+  return Array.isArray(tasks) ? tasks : [];
+ } catch (error) {
+  return [];
+ }
+}
+
+function renderTaskFarmOptions(){
+ const select = document.getElementById('taskFarm');
+ if (!select) return;
+ const previous = select.value;
+ const farms = getFarms();
+ select.innerHTML = '<option value="">Tất cả ruộng / chưa chọn</option>' +
+  farms.map(f => '<option value="' + Number(f.id) + '">' +
+   esc(f.name || 'Ruộng chưa đặt tên') + '</option>').join('');
+ if ([...select.options].some(o => o.value === previous)) {
+  select.value = previous;
+ }
+}
+
 function addTask(){
- const name=taskName.value.trim(),date=taskDate.value;
- if(!name||!date){alert('Bạn hãy nhập công việc và ngày thực hiện.');return;}
- const tasks=getTasks();tasks.push({name,date,done:false});
- localStorage.setItem('nx_tasks',JSON.stringify(tasks));taskName.value='';renderTasks();
+ const name = document.getElementById('taskName').value.trim();
+ const date = document.getElementById('taskDate').value;
+ const type = document.getElementById('taskType').value;
+ const farmValue = document.getElementById('taskFarm').value;
+ if (!name || !date) {
+  alert('Bạn hãy nhập nội dung công việc và ngày thực hiện.');
+  return;
+ }
+ const tasks = getTasks();
+ const task = {name:name, date:date, done:false, type:type};
+ if (farmValue !== '') {
+  task.farmId = Number(farmValue);
+  const farm = getFarms().find(f => f.id === task.farmId);
+  task.farmName = farm ? farm.name : '';
+ }
+ tasks.push(task);
+ try {
+  localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+ } catch (error) {
+  alert('Không lưu được lịch. Bộ nhớ có thể đã đầy.');
+  return;
+ }
+ document.getElementById('taskName').value = '';
+ renderTasks();
 }
+
 function renderTasks(){
- const tasks=getTasks();
- taskList.innerHTML=tasks.length?tasks.map((t,i)=>'<div style="padding:10px 0;border-bottom:1px solid #eee"><label style="margin:0"><input style="width:auto" type="checkbox" '+(t.done?'checked':'')+' onchange="toggleTask('+i+',this.checked)"> '+esc(t.name)+'</label><small>'+esc(t.date)+'</small> <button style="width:auto;padding:6px 10px;margin:5px 0" onclick="deleteTask('+i+')">Xóa</button></div>').join(''):'Chưa có công việc nào.';
+ const tasks = getTasks();
+ const list = document.getElementById('taskList');
+ if (!list) return;
+ if (!tasks.length) {
+  list.textContent = 'Chưa có công việc nào.';
+  return;
+ }
+ list.innerHTML = tasks.map((t,i) =>
+  '<div style="padding:10px 0;border-bottom:1px solid #eee">' +
+  '<label style="margin:0"><input style="width:auto" type="checkbox" ' +
+  (t.done ? 'checked' : '') +
+  ' onchange="toggleTask(' + i + ',this.checked)"> ' +
+  (t.done ? '<s>' : '') + esc(t.name) +
+  (t.done ? '</s>' : '') + '</label><br>' +
+  '<small>📅 ' + esc(t.date || 'Chưa có ngày') +
+  ' · ' + esc(t.type || 'Công việc cũ') +
+  ' · 🌾 ' + esc(t.farmName || 'Chưa gắn ruộng') +
+  '</small><br>' +
+  '<button style="width:auto;padding:6px 10px;margin:5px 0;background:#b83232" ' +
+  'onclick="deleteTask(' + i + ')">Xóa</button></div>'
+ ).join('');
 }
-function toggleTask(i,v){const a=getTasks();a[i].done=v;localStorage.setItem('nx_tasks',JSON.stringify(a));renderTasks();}
-function deleteTask(i){const a=getTasks();a.splice(i,1);localStorage.setItem('nx_tasks',JSON.stringify(a));renderTasks();}
+
+function toggleTask(i, value){
+ const tasks = getTasks();
+ if (!tasks[i]) return;
+ tasks[i].done = value;
+ localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+ renderTasks();
+}
+
+function deleteTask(i){
+ if (!confirm('Bạn có chắc muốn xóa công việc này không?')) return;
+ const tasks = getTasks();
+ tasks.splice(i, 1);
+ localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+ renderTasks();
+}
 function calculate(){
  const w=Number(weight.value),p=Number(price.value),c=Number(cost.value||0);
  if(weight.value===''||price.value===''||w<0||p<0||c<0){alert('Vui lòng nhập số liệu hợp lệ.');return;}
@@ -523,7 +613,7 @@ document.getElementById('txDate').value =
 renderTransactions();
 
 
-loadFarm();renderTasks();
+loadFarm();renderTaskFarmOptions();renderTasks();
 </script>
 </body>
 </html>
