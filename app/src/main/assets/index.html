@@ -370,26 +370,60 @@ function renderTasks(){
  const tasks = getTasks();
  const list = document.getElementById('taskList');
  if (!list) return;
+
  if (!tasks.length) {
   list.textContent = 'Chưa có công việc nào.';
   return;
  }
- list.innerHTML = tasks.map((t,i) =>
-  '<div style="padding:10px 0;border-bottom:1px solid #eee">' +
-  '<label style="margin:0"><input style="width:auto" type="checkbox" ' +
-  (t.done ? 'checked' : '') +
-  ' onchange="toggleTask(' + i + ',this.checked)"> ' +
-  (t.done ? '<s>' : '') + esc(t.name) +
-  (t.done ? '</s>' : '') + '</label><br>' +
-  '<small>📅 ' + esc(t.date || 'Chưa có ngày') +
-  ' · ' + esc(t.type || 'Công việc cũ') +
-  ' · 🌾 ' + esc(t.farmName || 'Chưa gắn ruộng') +
-  '</small><br>' +
-  '<button style="width:auto;padding:6px 10px;margin:5px 0;background:#b83232" ' +
-  'onclick="deleteTask(' + i + ')">Xóa</button></div>'
- ).join('');
-}
 
+ const today = new Date();
+ const todayText = [
+  today.getFullYear(),
+  String(today.getMonth()+1).padStart(2,'0'),
+  String(today.getDate()).padStart(2,'0')
+ ].join('-');
+
+ const ordered = tasks.map((task, index) => ({task, index}));
+ ordered.sort((a,b) => {
+  if (a.task.done !== b.task.done) return a.task.done ? 1 : -1;
+  return String(a.task.date || '9999-99-99')
+   .localeCompare(String(b.task.date || '9999-99-99'));
+ });
+
+ list.innerHTML = ordered.map(({task:t,index:i}) => {
+  let status = '📅 Sắp tới';
+  let color = '#16803c';
+
+  if (t.done) {
+   status = '✅ Đã hoàn thành';
+   color = '#16803c';
+  } else if (!t.date) {
+   status = '⚪ Chưa có ngày';
+   color = '#666';
+  } else if (t.date < todayText) {
+   status = '🔴 Quá hạn';
+   color = '#c62828';
+  } else if (t.date === todayText) {
+   status = '🟠 Hôm nay';
+   color = '#c77700';
+  }
+
+  return '<div style="padding:12px 0;border-bottom:1px solid #eee">' +
+   '<div style="color:' + color + ';font-weight:bold;margin-bottom:5px">' +
+   status + '</div>' +
+   '<label style="margin:0"><input style="width:auto" type="checkbox" ' +
+   (t.done ? 'checked' : '') +
+   ' onchange="toggleTask(' + i + ',this.checked)"> ' +
+   (t.done ? '<s>' : '') + esc(t.name || 'Công việc chưa đặt tên') +
+   (t.done ? '</s>' : '') + '</label><br>' +
+   '<small>📅 ' + esc(t.date || 'Chưa có ngày') +
+   ' · ' + esc(t.type || 'Công việc cũ') +
+   ' · 🌾 ' + esc(t.farmName || 'Chưa gắn ruộng') +
+   '</small><br>' +
+   '<button style="width:auto;padding:6px 10px;margin:5px 0;background:#b83232" ' +
+   'onclick="deleteTask(' + i + ')">Xóa</button></div>';
+ }).join('');
+}
 function toggleTask(i, value){
  const tasks = getTasks();
  if (!tasks[i]) return;

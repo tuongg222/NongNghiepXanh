@@ -3,6 +3,8 @@ package vn.nongnghiep.xanh;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -20,6 +22,8 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
     private static final int FILE_CHOOSER_REQUEST = 1002;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 1003;
+    private static final String CHANNEL_ID = "nong_nghiep_xanh_care";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +68,36 @@ public class MainActivity extends Activity {
         setContentView(webView);
         webView.loadUrl("file:///android_asset/index.html");
 
+        createNotificationChannel();
+        requestNotificationPermission();
         requestLocationPermission();
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "Nhắc lịch chăm sóc",
+                NotificationManager.IMPORTANCE_DEFAULT
+            );
+            channel.setDescription("Nhắc công việc chăm sóc ruộng lúa");
+            NotificationManager manager =
+                getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                new String[] { Manifest.permission.POST_NOTIFICATIONS },
+                NOTIFICATION_PERMISSION_REQUEST
+            );
+        }
     }
 
     private void requestLocationPermission() {
