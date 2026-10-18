@@ -25,6 +25,28 @@ jobs:
       - name: Install Wrangler
         run: npm install --global wrangler
 
+      - name: Check secret formatting
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node -e '
+            for (const [name, value] of Object.entries({
+              CLOUDFLARE_API_TOKEN: process.env.CF_TOKEN,
+              CLOUDFLARE_ACCOUNT_ID: process.env.CF_ACCOUNT
+            })) {
+              if (!value) {
+                console.error(name + " is missing");
+                process.exitCode = 1;
+              } else if (/[\r\n]/.test(value)) {
+                console.error(name + " contains a newline");
+                process.exitCode = 1;
+              } else {
+                console.log(name + " is present; no newline detected");
+              }
+            }
+          '
+
       - name: Deploy Worker
         run: wrangler deploy
         env:
