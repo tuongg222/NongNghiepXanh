@@ -28,6 +28,10 @@ export default {
       });
     }
 
+    if (url.pathname === "/" && request.method === "GET") {
+      return env.ASSETS.fetch(request);
+    }
+
     if (url.pathname !== "/diagnose") {
       return reply({ error: "Không tìm thấy endpoint." }, 404);
     }
