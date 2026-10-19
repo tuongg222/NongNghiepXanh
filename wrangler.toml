@@ -1,3 +1,6 @@
 name = "nongnghiep-xanh-ai"
 main = "worker.js"
 compatibility_date = "2026-10-17"
+
+[ai]
+binding = "AI"

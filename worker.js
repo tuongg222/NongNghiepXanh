@@ -24,46 +24,96 @@ export default {
       return reply({
         ok: true,
         service: "nongnghiep-xanh-ai",
-        aiConnected: Boolean(env.AI_API_KEY)
+        aiConnected: Boolean(env.AI)
       });
     }
 
     if (url.pathname !== "/diagnose") {
-      return reply({ error: "Khong tim thay endpoint." }, 404);
+      return reply({ error: "Không tìm thấy endpoint." }, 404);
     }
 
     if (request.method !== "POST") {
-      return reply({ error: "Chi chap nhan POST." }, 405);
+      return reply({ error: "Chỉ chấp nhận POST." }, 405);
     }
 
     let body;
     try {
       body = await request.json();
     } catch {
-      return reply({ error: "Du lieu JSON khong hop le." }, 400);
+      return reply({ error: "Dữ liệu JSON không hợp lệ." }, 400);
     }
 
-    if (typeof body.image !== "string" ||
-        !/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(body.image)) {
+    if (
+      typeof body.image !== "string" ||
+      !/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(body.image)
+    ) {
       return reply({
-        error: "Can gui anh JPG, PNG hoac WebP dang base64."
+        error: "Cần gửi ảnh JPG, PNG hoặc WebP dạng base64."
       }, 400);
     }
 
     if (body.image.length > 5_000_000) {
-      return reply({ error: "Anh qua lon. Hay chon anh nho hon." }, 413);
+      return reply({ error: "Ảnh quá lớn. Hãy chọn ảnh nhỏ hơn." }, 413);
     }
 
-    if (!env.AI_API_KEY) {
+    if (!env.AI) {
       return reply({
-        error: "May chu chua duoc cau hinh AI.",
+        error: "Workers AI chưa được cấu hình.",
         aiConnected: false
       }, 503);
     }
 
-    return reply({
-      error: "AI chua duoc ket noi voi mo hinh nhan dien benh lua.",
-      aiConnected: false
-    }, 503);
+    try {
+      const result = await env.AI.run(
+        "@cf/meta/llama-3.2-11b-vision-instruct",
+        {
+          messages: [
+            {
+              role: "system",
+              content:
+                "Bạn hỗ trợ nông dân Việt Nam quan sát cây lúa. " +
+                "Phân tích ảnh bằng tiếng Việt. Nêu dấu hiệu nhìn thấy, " +
+                "các nguyên nhân có thể và cách kiểm tra thêm. " +
+                "Không khẳng định chắc chắn bệnh chỉ từ ảnh; " +
+                "không tự bịa độ tin cậy hoặc tên thuốc. " +
+                "Khuyên hỏi cán bộ bảo vệ thực vật nếu chưa rõ."
+            },
+            {
+              role: "user",
+              content:
+                "Hãy xem ảnh cây lúa này. Triệu chứng nhìn thấy là gì? " +
+                "Có thể liên quan đến bệnh, sâu hại, thiếu dinh dưỡng " +
+                "hay yếu tố môi trường nào? Hãy nêu cách kiểm tra tiếp theo."
+            }
+          ],
+          image: body.image
+        }
+      );
+
+      const answer =
+        result?.response ||
+        result?.description ||
+        result?.result;
+
+      if (!answer) {
+        return reply({
+          error: "Mô hình không trả về nội dung phân tích.",
+          aiConnected: true
+        }, 502);
+      }
+
+      return reply({
+        ok: true,
+        aiConnected: true,
+        result: answer
+      });
+    } catch (error) {
+      console.error("Workers AI error:", error?.message || "Unknown error");
+
+      return reply({
+        error: "Không gọi được mô hình AI. Hãy kiểm tra quyền, giới hạn sử dụng và cấu hình Workers AI.",
+        aiConnected: false
+      }, 502);
+    }
   }
 };
