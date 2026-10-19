@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16834a">
+<title>Nông Nghiệp Xanh</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Arial;background:#f1f8f1;color:#203529}
+header{background:#16834a;color:white;padding:24px 18px;border-radius:0 0 24px 24px}
+header h1{margin:0;font-size:26px}
+header p{margin:8px 0 0}
+main{max-width:600px;margin:auto;padding:16px}
+.card{background:white;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 3px 14px #1231}
+h2{font-size:19px;margin-top:0}
+button,.file{display:block;width:100%;padding:13px;border:0;border-radius:12px;background:#16834a;color:white;font-size:16px;font-weight:600;text-align:center;margin-top:12px}
+input[type=file]{width:100%;margin:12px 0}
+#preview{display:none;width:100%;max-height:320px;object-fit:contain;border-radius:12px}
+#result{white-space:pre-wrap;line-height:1.65}
+.note{font-size:13px;color:#607568}
+button:disabled{opacity:.55}
+</style>
+</head>
+<body>
+<header>
+<h1>🌱 Nông Nghiệp Xanh</h1>
+<p>Đồng hành cùng nhà nông Việt Nam</p>
+</header>
+<main>
+<div class="card">
+<h2>🌾 AI nhận diện vấn đề trên cây lúa</h2>
+<p>Chụp hoặc chọn ảnh cây lúa để AI hỗ trợ nhận biết dấu hiệu bệnh, sâu hại hay thiếu dinh dưỡng.</p>
+<input id="photo" type="file" accept="image/jpeg,image/png,image/webp">
+<img id="preview" alt="Ảnh cây lúa đã chọn">
+<button id="analyze">🔍 Phân tích ảnh bằng AI</button>
+<p class="note">Kết quả chỉ mang tính tham khảo. Cần kiểm tra thực tế trước khi xử lý ruộng lúa.</p>
+</div>
+<div class="card">
+<h2>📋 Kết quả phân tích</h2>
+<div id="result">Bạn hãy chọn ảnh cây lúa để bắt đầu.</div>
+</div>
+</main>
+<script>
+const API = "";
+const photo = document.getElementById("photo");
+const preview = document.getElementById("preview");
+const result = document.getElementById("result");
+const analyze = document.getElementById("analyze");
+let selectedImage = null;
+
+photo.addEventListener("change", async () => {
+  const file = photo.files[0];
+  selectedImage = null;
+  if (!file) return;
+  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
+    result.textContent = "Vui lòng chọn ảnh JPG, PNG hoặc WebP.";
+    photo.value = "";
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    result.textContent = "Ảnh hơi lớn. Vui lòng chọn ảnh dưới 2 MB.";
+    photo.value = "";
+    return;
+  }
+  selectedImage = await new Promise((resolve,reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  preview.src = selectedImage;
+  preview.style.display = "block";
+  result.textContent = "Đã chọn ảnh. Nhấn nút Phân tích ảnh bằng AI.";
+});
+
+analyze.addEventListener("click", async () => {
+  if (!selectedImage) {
+    result.textContent = "Bạn hãy chọn ảnh cây lúa trước nhé.";
+    return;
+  }
+  analyze.disabled = true;
+  result.textContent = "Đang phân tích ảnh, vui lòng chờ...";
+  try {
+    const response = await fetch(API + "/diagnose", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({image:selectedImage})
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Có lỗi xảy ra.");
+    result.textContent = data.result;
+  } catch (e) {
+    result.textContent = "Chưa phân tích được: " + e.message;
+  } finally {
+    analyze.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
