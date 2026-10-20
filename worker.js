@@ -27,7 +27,7 @@ export default {
         return await handleAuth(request, env, url);
       } catch (error) {
         console.error("Auth API error:", error);
-        return reply({ error: "Lỗi xử lý tài khoản. Vui lòng thử lại." }, 500);
+        return reply({ error: "Lỗi xử lý tài khoản.", code: error?.name || "UnknownError" }, 500);
       }
     }
 
