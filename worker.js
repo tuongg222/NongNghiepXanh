@@ -22,7 +22,16 @@ export default {
       return new Response(null, { status: 204, headers: CORS });
     }
 
-    if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
+    if (url.pathname === "/auth/random-test" && request.method === "GET") {
+  try {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    return reply({ ok: true, length: bytes.length });
+  } catch (error) {
+    return reply({ ok: false, code: error?.name || "UnknownError" }, 500);
+  }
+}
+
+if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
   try {
     const key = await crypto.subtle.importKey(
       "raw",
