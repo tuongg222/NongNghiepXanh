@@ -22,7 +22,27 @@ export default {
       return new Response(null, { status: 204, headers: CORS });
     }
 
-    if (url.pathname.startsWith("/auth/")) {
+    if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode("test-password"),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits"]
+    );
+    await crypto.subtle.deriveBits({
+      name: "PBKDF2",
+      salt: new TextEncoder().encode("test-salt"),
+      iterations: 1000,
+      hash: "SHA-256"
+    }, key, 256);
+    return reply({ ok: true });
+  } catch (error) {
+    return reply({ ok: false, code: error?.name || "UnknownError" }, 500);
+  }
+}
+if (url.pathname.startsWith("/auth/")) {
       try {
         return await handleAuth(request, env, url);
       } catch (error) {
