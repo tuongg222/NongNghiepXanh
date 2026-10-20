@@ -1,7 +1,9 @@
+import { handleAuth } from "./auth.js";
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Content-Type": "application/json; charset=utf-8"
 };
 
@@ -18,6 +20,15 @@ export default {
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS });
+    }
+
+    if (url.pathname.startsWith("/auth/")) {
+      try {
+        return await handleAuth(request, env, url);
+      } catch (error) {
+        console.error("Auth API error:", error?.message || "Unknown error");
+        return reply({ error: "Lỗi xử lý tài khoản. Vui lòng thử lại." }, 500);
+      }
     }
 
     if (url.pathname === "/health" && request.method === "GET") {

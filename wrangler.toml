@@ -10,3 +10,7 @@ binding = "AI"
 directory = "./public"
 binding = "ASSETS"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "nongnghiep-xanh-db"
+database_id = "c8a8bc40-db9d-4cea-a3ab-17d174c08821"
