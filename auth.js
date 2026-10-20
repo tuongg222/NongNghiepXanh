@@ -78,12 +78,15 @@ export async function handleAuth(request, env, url) {
       return json({ error: "Mật khẩu phải dài từ 10 đến 128 ký tự." }, 400);
     }
 
-    const salt = randomToken();
-    const hash = await passwordHash(password, salt);
-    const stored = `${salt}:${hash}`;
-
+    let stage = "randomToken";
     try {
-      const result = await env.DB.prepare(
+      const salt = randomToken();
+      stage = "passwordHash";
+      const hash = await passwordHash(password, salt);
+      const stored = `${salt}:${hash}`;
+
+      stage = "D1_INSERT";
+      await env.DB.prepare(
         "INSERT INTO users (username, password_hash) VALUES (?, ?)"
       ).bind(username, stored).run();
 
@@ -92,8 +95,8 @@ export async function handleAuth(request, env, url) {
       if (String(error?.message || "").toLowerCase().includes("unique")) {
         return json({ error: "Tên tài khoản đã tồn tại." }, 409);
       }
-      console.error("Register failed:", error?.message || "Unknown");
-      return json({ error: "Không thể tạo tài khoản lúc này." }, 500);
+      console.error("Register failed at", stage, error?.name || "UnknownError");
+      return json({ error: "Lỗi đăng ký.", stage, code: error?.name || "UnknownError" }, 500);
     }
   }
 
