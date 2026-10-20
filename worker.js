@@ -45,7 +45,7 @@ if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
     await crypto.subtle.deriveBits({
       name: "PBKDF2",
       salt: new TextEncoder().encode("test-salt"),
-      iterations: 210000,
+      iterations: 100000,
       hash: "SHA-256"
     }, key, 256);
     return reply({ ok: true });
