@@ -32,6 +32,7 @@ export default {
 }
 
 if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
+  let stage = "importKey";
   try {
     const key = await crypto.subtle.importKey(
       "raw",
@@ -40,6 +41,7 @@ if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
       false,
       ["deriveBits"]
     );
+    stage = "deriveBits";
     await crypto.subtle.deriveBits({
       name: "PBKDF2",
       salt: new TextEncoder().encode("test-salt"),
@@ -48,7 +50,12 @@ if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
     }, key, 256);
     return reply({ ok: true });
   } catch (error) {
-    return reply({ ok: false, code: error?.name || "UnknownError" }, 500);
+    return reply({
+      ok: false,
+      stage,
+      code: error?.name || "UnknownError",
+      message: String(error?.message || "").slice(0, 200)
+    }, 500);
   }
 }
 if (url.pathname.startsWith("/auth/")) {
