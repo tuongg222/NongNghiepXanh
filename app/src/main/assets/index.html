@@ -1445,7 +1445,11 @@ async function loadWeather(){
     });
     let data = {};
     try { data = await response.json(); } catch (_) {}
-    if (!response.ok) throw new Error(data.error || 'Yêu cầu thất bại (' + response.status + ').');
+    if (!response.ok) {
+      const error = new Error(data.error || 'Yêu cầu thất bại (' + response.status + ').');
+      error.status = response.status;
+      throw error;
+    }
     return data;
   }
 
@@ -1546,10 +1550,19 @@ async function loadWeather(){
     }
     try {
       const result = await api('/auth/me', { method: 'POST' });
-      if (!result.user) throw new Error('Phiên không hợp lệ.');
+      if (!result.user) throw new Error('Máy chủ chưa xác nhận được phiên đăng nhập.');
       showSignedIn(result.user);
-    } catch (_) {
-      showSignedOut('Phiên đăng nhập hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.');
+    } catch (error) {
+      if (error && error.status === 401) {
+        showSignedOut('Phiên đăng nhập hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.');
+        return;
+      }
+
+      // Lỗi mạng hoặc máy chủ tạm thời không được tự xóa token.
+      overlay.hidden = false;
+      bar.hidden = true;
+      say('Chưa kiểm tra được phiên đăng nhập. Hãy kiểm tra Internet và thử mở lại ứng dụng. Phiên đã lưu vẫn được giữ.', false);
+      console.warn('Không kiểm tra được phiên đăng nhập:', error);
     }
   }
 
