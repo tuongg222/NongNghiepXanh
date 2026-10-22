@@ -159,11 +159,13 @@ if (url.pathname.startsWith("/auth/")) {
         result: answer
       });
     } catch (error) {
-      console.error("Workers AI error:", error?.message || "Unknown error");
+      const detail = String(error?.message || error?.name || "Unknown error").slice(0, 240);
+      console.error("Workers AI error:", detail);
 
       return reply({
-        error: "Không gọi được mô hình AI. Hãy kiểm tra quyền, giới hạn sử dụng và cấu hình Workers AI.",
-        aiConnected: false
+        error: "Workers AI gặp lỗi khi chạy mô hình: " + detail,
+        aiConnected: false,
+        hint: "Kiểm tra binding AI trong wrangler.toml/Cloudflare, model access và giới hạn tài khoản."
       }, 502);
     }
   }
