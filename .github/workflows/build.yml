@@ -23,12 +23,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Cai Android SDK
-        uses: android-actions/setup-android@v4
-
       - name: Cai Android platform
+        shell: bash
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          set -e
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDKMANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::Khong tim thay sdkmanager trong $SDK"
+            exit 1
+          fi
+          "$SDKMANAGER" --licenses </dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Bien dich APK
         uses: gradle/gradle-build-action@v3
