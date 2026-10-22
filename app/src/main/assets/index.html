@@ -178,6 +178,16 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
 
 <section id="care" class="page">
   <div class="card">
+    <h2>🌦️ Gợi ý công việc theo thời tiết</h2>
+    <p>Gợi ý dựa trên dự báo 7 ngày. Bà con tự chọn công việc muốn thêm vào lịch.</p>
+    <button type="button" onclick="renderWeatherTaskSuggestions()">Cập nhật gợi ý</button>
+    <div id="weatherTaskSuggestions" class="result" aria-live="polite">
+      Hãy tải dự báo trong mục Thời tiết trước.
+    </div>
+    <small>Dự báo chỉ mang tính tham khảo. Hãy kiểm tra điều kiện thực tế tại ruộng.</small>
+  </div>
+
+  <div class="card">
     <h2>📅 Lịch chăm sóc</h2>
     <label>Chọn ruộng</label>
     <select id="taskFarm">
@@ -1290,6 +1300,122 @@ function useMeasuredArea(){
   document.getElementById('farm').scrollIntoView({behavior:'smooth'});
 }
 
+
+function getSavedWeatherDays() {
+  try {
+    const value = JSON.parse(localStorage.getItem('nx_weather_daily') || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function weatherTaskAdvice(day) {
+  const chance = day.chance;
+  const temp = day.maxTemp;
+  const code = day.code;
+
+  if ([95, 96, 99].includes(code)) {
+    return 'Theo dõi cảnh báo dông; tránh làm việc ngoài đồng khi có dông.';
+  }
+  if (chance !== null && chance >= 60) {
+    return 'Kiểm tra bờ bao, đường thoát nước và chuẩn bị thu dọn lúa đang phơi.';
+  }
+  if (chance !== null && chance >= 40) {
+    return 'Kiểm tra dự báo trước khi phơi lúa; chuẩn bị phương án khi mưa đến.';
+  }
+  if (temp !== null && temp >= 35) {
+    return 'Ưu tiên làm việc vào sáng sớm hoặc chiều mát; uống đủ nước và nghỉ khi mệt.';
+  }
+  if (chance !== null && chance <= 20 && [0, 1].includes(code)) {
+    return 'Có thể cân nhắc việc ngoài trời vào giờ mát; kiểm tra dự báo trước khi bắt đầu.';
+  }
+  return 'Kiểm tra thực tế tại ruộng và cập nhật dự báo trước khi quyết định công việc.';
+}
+
+function renderWeatherTaskSuggestions() {
+  const box = document.getElementById('weatherTaskSuggestions');
+  if (!box) return;
+
+  const days = getSavedWeatherDays();
+  if (!days.length) {
+    box.textContent = 'Chưa có dự báo. Hãy vào mục Thời tiết và nhấn Cập nhật thời tiết.';
+    return;
+  }
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+
+  const tasks = getTasks();
+  box.innerHTML = days.map((day, i) => {
+    const advice = weatherTaskAdvice(day);
+    const exists = tasks.some(t =>
+      !t.done && t.date === day.date && t.name === advice
+    );
+    return '<div style="padding:12px 0;border-bottom:1px solid #ddd">' +
+      '<b>📅 ' + esc(day.date) + '</b>' +
+      '<p>' + esc(advice) + '</p>' +
+      '<p>Xác suất mưa: ' +
+      (day.chance === null ? 'Chưa có dữ liệu' : esc(day.chance) + '%') +
+      ' · Nhiệt độ cao nhất: ' +
+      (day.maxTemp === null ? 'Chưa có dữ liệu' : esc(day.maxTemp) + ' °C') +
+      '</p><button type="button" style="width:auto" ' +
+      (exists ? 'disabled' : '') +
+      ' onclick="addWeatherSuggestedTask(' + i + ')">' +
+      (exists ? 'Đã có trong lịch' : '＋ Thêm vào lịch chăm sóc') +
+      '</button></div>';
+  }).join('');
+}
+
+function addWeatherSuggestedTask(index) {
+  const day = getSavedWeatherDays()[index];
+  if (!day || !day.date) {
+    alert('Không tìm thấy gợi ý. Hãy cập nhật thời tiết lại.');
+    return;
+  }
+
+  const name = weatherTaskAdvice(day);
+  const tasks = getTasks();
+
+  if (tasks.some(t => !t.done && t.date === day.date && t.name === name)) {
+    alert('Công việc này đã có trong lịch.');
+    renderWeatherTaskSuggestions();
+    return;
+  }
+
+  const task = {
+    id: 'weather_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+    name: name,
+    date: day.date,
+    time: '07:00',
+    done: false,
+    type: 'Khác'
+  };
+
+  // Gắn ruộng nếu người dùng đang chọn ruộng trong biểu mẫu lịch.
+  const farmSelect = document.getElementById('taskFarm');
+  const farmValue = farmSelect ? farmSelect.value : '';
+  if (farmValue !== '') {
+    task.farmId = Number(farmValue);
+    const farm = getFarms().find(f => Number(f.id) === task.farmId);
+    task.farmName = farm ? farm.name : '';
+  }
+
+  tasks.push(task);
+  try {
+    localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+  } catch (_) {
+    alert('Không lưu được lịch. Hãy kiểm tra bộ nhớ thiết bị.');
+    return;
+  }
+
+  syncCareReminder(task);
+  renderTasks();
+  renderWeatherTaskSuggestions();
+  alert('Đã thêm công việc vào lịch chăm sóc lúc 07:00.');
+}
+
 async function loadWeather(){
   const latInput = document.getElementById('weatherLat');
   const lonInput = document.getElementById('weatherLon');
@@ -1385,6 +1511,28 @@ async function loadWeather(){
 
     const c = data.current;
     const d = data.daily;
+    try {
+      const savedDays = (data.daily.time || []).slice(0, 7).map((date, i) => {
+        const read = key => {
+          const values = data.daily[key] || [];
+          const value = values[i];
+          return value == null || value === '' || !Number.isFinite(Number(value))
+            ? null : Number(value);
+        };
+        return {
+          date: date,
+          chance: read('precipitation_probability_max'),
+          amount: read('precipitation_sum'),
+          maxTemp: read('temperature_2m_max'),
+          code: read('weather_code')
+        };
+      });
+      localStorage.setItem('nx_weather_daily', JSON.stringify(savedDays));
+      renderWeatherTaskSuggestions();
+    } catch (e) {
+      console.warn('Không lưu được dự báo cho lịch chăm sóc:', e);
+    }
+
     const currentCode = Number(c.weather_code);
     currentBox.innerHTML =
       '<h3 style="font-size:1.35rem">🌤️ Thời tiết hiện tại</h3>' +
