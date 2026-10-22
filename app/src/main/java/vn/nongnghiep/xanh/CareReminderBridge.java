@@ -19,7 +19,7 @@ public class CareReminderBridge {
     }
 
     @JavascriptInterface
-    public void scheduleReminder(String id, String title, String date) {
+    public void scheduleReminder(String id, String title, String date, String time) {
         if (id == null || id.trim().isEmpty()
                 || title == null || title.trim().isEmpty()
                 || date == null || date.trim().isEmpty()) {
@@ -27,16 +27,15 @@ public class CareReminderBridge {
         }
 
         try {
+            String safeTime = (time == null || time.trim().isEmpty()) ? "09:00" : time.trim();
             SimpleDateFormat format =
-                    new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                    new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
             format.setLenient(false);
-            Date parsed = format.parse(date);
+            Date parsed = format.parse(date + " " + safeTime);
             if (parsed == null) return;
 
             Calendar calendar = Calendar.getInstance();
             calendar.setTime(parsed);
-            calendar.set(Calendar.HOUR_OF_DAY, 9);
-            calendar.set(Calendar.MINUTE, 0);
             calendar.set(Calendar.SECOND, 0);
             calendar.set(Calendar.MILLISECOND, 0);
 

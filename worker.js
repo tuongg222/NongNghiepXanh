@@ -137,7 +137,7 @@ if (url.pathname.startsWith("/auth/")) {
                 "hay yếu tố môi trường nào? Hãy nêu cách kiểm tra tiếp theo."
             }
           ],
-          image: body.image
+          image: body.image.substring(body.image.indexOf(",") + 1)
         }
       );
 

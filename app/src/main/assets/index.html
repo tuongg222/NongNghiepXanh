@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#176b3a">
 <title>Nông Nghiệp Xanh</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f2f7f0;color:#203327;font-family:Arial,sans-serif}
@@ -28,6 +30,8 @@ nav button{min-width:max-content;width:auto;margin:0;padding:10px 13px;backgroun
 nav button.active{background:#218447;color:white}
 .page{display:none}.page.active{display:block}
 footer{text-align:center;color:#718072;padding:12px;font-size:12px}
+#farmMap{height:300px;border-radius:12px;overflow:hidden;background:#e4eee3}
+.map-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 #nxAuthOverlay{position:fixed;inset:0;z-index:99999;background:#f2f7f0;
 display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
@@ -108,7 +112,7 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
   </div>
   <div class="card" style="margin-top:14px">
     <h2>🤖 Trợ lý nông nghiệp AI</h2>
-    <p>Phần phân tích ảnh bệnh cây và gợi ý chăm sóc bằng AI sẽ được kết nối ở bước tiếp theo.</p>
+    <p>Có thể gửi ảnh cây lúa đến máy chủ AI để nhận gợi ý ban đầu. Kết quả chỉ tham khảo, cần kiểm tra thực tế trước khi xử lý.</p>
     <small>Không nên phun thuốc chỉ dựa vào một kết quả nhận diện tự động.</small>
   </div>
 </section>
@@ -137,10 +141,34 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
     <label>Giống lúa</label><input id="variety" placeholder="Ví dụ: OM18">
     <label>Diện tích (ha)</label><input id="area" type="number" min="0" step="0.01" placeholder="Ví dụ: 1.5">
     <label>Ngày sạ</label><input id="sowDate" type="date">
-    <button onclick="saveFarm()">Lưu thông tin ruộng</button>
+    <label>Giai đoạn mùa vụ</label>
+    <select id="farmStage">
+      <option value="Chuẩn bị đất">Chuẩn bị đất</option><option value="Đã sạ">Đã sạ</option>
+      <option value="Mạ">Mạ</option><option value="Đẻ nhánh">Đẻ nhánh</option>
+      <option value="Làm đòng">Làm đòng</option><option value="Trổ bông">Trổ bông</option>
+      <option value="Chắc xanh - chín">Chắc xanh - chín</option><option value="Đã thu hoạch">Đã thu hoạch</option>
+    </select>
+    <label>Ngày thu hoạch dự kiến</label><input id="harvestDate" type="date">
+    <button onclick="saveFarm()">Lưu thông tin ruộng / mùa vụ</button>
     <div id="farmResult" class="result" style="display:none"></div>
   </div>
 
+  <div class="card">
+    <h2>🗺️ Đo diện tích ruộng trên bản đồ</h2>
+    <p>Chạm các góc ruộng theo thứ tự để vẽ ranh giới. Cần kết nối Internet để tải bản đồ.</p>
+    <div id="farmMap" aria-label="Bản đồ đo diện tích ruộng"></div>
+    <div class="map-actions">
+      <button type="button" onclick="undoFarmPoint()">↩️ Bỏ điểm cuối</button>
+      <button type="button" onclick="clearFarmPolygon()">🧹 Xóa đường vẽ</button>
+    </div>
+    <label>Quy đổi 1 công</label>
+    <select id="congSize" onchange="updateFarmAreaResult()">
+      <option value="1000">1.000 m² (công nhỏ)</option>
+      <option value="1296">1.296 m² (công lớn)</option>
+    </select>
+    <div id="farmAreaResult" class="result">Chạm ít nhất 3 góc ruộng để tính diện tích.</div>
+    <button type="button" onclick="useMeasuredArea()">Dùng diện tích đo được cho ruộng đang nhập</button>
+  </div>
   <div class="card">
     <h2>📋 Danh sách ruộng lúa</h2>
     <p>Quản lý thông tin từng ruộng của gia đình.</p>
@@ -168,6 +196,8 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
     <input id="taskName" placeholder="Ví dụ: Bón phân đợt 1">
     <label>Ngày thực hiện</label>
     <input id="taskDate" type="date">
+    <label>Giờ nhắc</label>
+    <input id="taskTime" type="time" value="09:00">
     <button onclick="addTask()">Thêm công việc</button>
   </div>
   <div class="card">
@@ -423,7 +453,8 @@ function showPage(id,btn){
  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
  document.getElementById(id).classList.add('active');
  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
- btn.classList.add('active');
+ if (btn) btn.classList.add('active');
+ if (id === 'farm') setTimeout(initFarmMap, 150);
 }
 function getFarms(){
  try {
@@ -448,8 +479,10 @@ function saveFarm(){
   name: fieldName.value.trim(),
   variety: variety.value.trim(),
   area: area.value,
-  sowDate: sowDate.value
- };
+   sowDate: sowDate.value,
+   stage: document.getElementById('farmStage').value,
+   harvestDate: document.getElementById('harvestDate').value
+  };
  if (!data.name) {
   alert('Bạn hãy nhập tên ruộng nhé.');
   fieldName.focus();
@@ -483,6 +516,8 @@ function saveFarm(){
  variety.value = '';
  area.value = '';
  sowDate.value = '';
+ document.getElementById('farmStage').value = 'Chuẩn bị đất';
+ document.getElementById('harvestDate').value = '';
  farmResult.style.display = 'block';
  farmResult.textContent = 'Đã lưu thông tin ruộng!';
  const saveButton = document.querySelector('#farm button');
@@ -503,7 +538,8 @@ function renderFarms(){
   '<b>🌾 ' + esc(f.name || 'Chưa đặt tên') + '</b><br>' +
   '<small>Giống: ' + esc(f.variety || 'Chưa nhập') +
   ' · Diện tích: ' + esc(f.area || '0') + ' ha</small><br>' +
-  '<small>Ngày sạ: ' + esc(f.sowDate || 'Chưa nhập') + '</small><br>' +
+  '<small>Ngày sạ: ' + esc(f.sowDate || 'Chưa nhập') + ' · Giai đoạn: ' + esc(f.stage || 'Chưa cập nhật') + '</small><br>' +
+  '<small>Thu hoạch dự kiến: ' + esc(f.harvestDate || 'Chưa nhập') + '</small><br>' +
   '<button style="width:auto;padding:8px 12px" onclick="editFarm(' + Number(f.id) + ')">Sửa</button> ' +
   '<button style="width:auto;padding:8px 12px;background:#b83232" onclick="deleteFarm(' + Number(f.id) + ')">Xóa</button>' +
   '</div>'
@@ -521,6 +557,8 @@ function editFarm(id){
  variety.value = farm.variety || '';
  area.value = farm.area || '';
  sowDate.value = farm.sowDate || '';
+ document.getElementById('farmStage').value = farm.stage || 'Chuẩn bị đất';
+ document.getElementById('harvestDate').value = farm.harvestDate || '';
  const saveButton = document.querySelector('#farm button');
  if (saveButton) saveButton.textContent = 'Lưu thay đổi';
  document.getElementById('farmResult').style.display = 'block';
@@ -546,6 +584,8 @@ function deleteFarm(id){
   variety.value = '';
   area.value = '';
   sowDate.value = '';
+  document.getElementById('farmStage').value = 'Chuẩn bị đất';
+  document.getElementById('harvestDate').value = '';
   const saveButton = document.querySelector('#farm button');
   if (saveButton) saveButton.textContent = 'Lưu thông tin ruộng';
  }
@@ -560,6 +600,8 @@ function loadFarm(){
   variety.value = d.variety || '';
   area.value = d.area || '';
   sowDate.value = d.sowDate || '';
+  document.getElementById('farmStage').value = d.stage || 'Chuẩn bị đất';
+  document.getElementById('harvestDate').value = d.harvestDate || '';
  }
  renderFarms();
 }
@@ -585,7 +627,7 @@ function getTasks(){
 function syncCareReminder(task){
  if (!task || !task.id || !task.date || task.done) return;
  if (window.AndroidCare && typeof window.AndroidCare.scheduleReminder === 'function'){
-  window.AndroidCare.scheduleReminder(String(task.id), String(task.name || 'Chăm sóc ruộng lúa'), String(task.date));
+  window.AndroidCare.scheduleReminder(String(task.id), String(task.name || 'Chăm sóc ruộng lúa'), String(task.date), String(task.time || '09:00'));
  }
 }
 
@@ -626,7 +668,8 @@ function addTask(){
   return;
  }
  const tasks = getTasks();
- const task = {id:'care_' + Date.now() + '_' + Math.random().toString(36).slice(2), name:name, date:date, done:false, type:type};
+ const time = document.getElementById('taskTime').value || '09:00';
+  const task = {id:'care_' + Date.now() + '_' + Math.random().toString(36).slice(2), name:name, date:date, time:time, done:false, type:type};
  if (farmValue !== '') {
   task.farmId = Number(farmValue);
   const farm = getFarms().find(f => f.id === task.farmId);
@@ -695,7 +738,7 @@ function renderTasks(){
    (t.done ? '<s>' : '') + esc(t.name || 'Công việc chưa đặt tên') +
    (t.done ? '</s>' : '') + '</label><br>' +
    '<small>📅 ' + esc(t.date || 'Chưa có ngày') +
-   ' · ' + esc(t.type || 'Công việc cũ') +
+   ' lúc ' + esc(t.time || '09:00') + ' · ' + esc(t.type || 'Công việc cũ') +
    ' · 🌾 ' + esc(t.farmName || 'Chưa gắn ruộng') +
    '</small><br>' +
    '<button style="width:auto;padding:6px 10px;margin:5px 0;background:#b83232" ' +
@@ -1145,6 +1188,95 @@ renderTransactions();
 
 loadFarm();renderTaskFarmOptions();renderTasks();syncAllCareReminders();
 
+
+let farmMapInstance = null;
+let farmMapPoints = [];
+let farmMapLine = null;
+let farmMapPolygon = null;
+let farmMapMarkers = [];
+
+function initFarmMap(){
+  const element = document.getElementById('farmMap');
+  if (!element || farmMapInstance) {
+    if (farmMapInstance) farmMapInstance.invalidateSize();
+    return;
+  }
+  if (!window.L) {
+    element.innerHTML = '<p style="padding:12px">Không tải được thư viện bản đồ. Hãy kiểm tra Internet rồi mở lại mục Ruộng lúa.</p>';
+    return;
+  }
+  farmMapInstance = L.map(element).setView([10.03, 105.78], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap'
+  }).addTo(farmMapInstance);
+  farmMapInstance.on('click', function(e){
+    farmMapPoints.push([e.latlng.lat, e.latlng.lng]);
+    redrawFarmPolygon();
+  });
+  setTimeout(() => farmMapInstance && farmMapInstance.invalidateSize(), 250);
+}
+function redrawFarmPolygon(){
+  if (!farmMapInstance) return;
+  farmMapMarkers.forEach(m => farmMapInstance.removeLayer(m));
+  farmMapMarkers = farmMapPoints.map((p,i) => L.marker(p).addTo(farmMapInstance).bindTooltip('Điểm ' + (i+1)));
+  if (farmMapLine) farmMapInstance.removeLayer(farmMapLine);
+  if (farmMapPolygon) farmMapInstance.removeLayer(farmMapPolygon);
+  farmMapLine = null; farmMapPolygon = null;
+  if (farmMapPoints.length >= 3) {
+    farmMapPolygon = L.polygon(farmMapPoints, {color:'#218447', fillOpacity:0.22}).addTo(farmMapInstance);
+    farmMapInstance.fitBounds(farmMapPolygon.getBounds(), {padding:[15,15]});
+  } else if (farmMapPoints.length >= 2) {
+    farmMapLine = L.polyline(farmMapPoints, {color:'#218447'}).addTo(farmMapInstance);
+  }
+  updateFarmAreaResult();
+}
+function polygonAreaM2(points){
+  if (!points || points.length < 3) return 0;
+  const radius = 6378137;
+  let area = 0;
+  for (let i=0; i<points.length; i++){
+    const p1 = points[i], p2 = points[(i+1)%points.length];
+    const lon1 = p1[1] * Math.PI / 180, lon2 = p2[1] * Math.PI / 180;
+    const lat1 = p1[0] * Math.PI / 180, lat2 = p2[0] * Math.PI / 180;
+    area += (lon2-lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+  }
+  return Math.abs(area * radius * radius / 2);
+}
+function updateFarmAreaResult(){
+  const box = document.getElementById('farmAreaResult');
+  if (!box) return;
+  if (farmMapPoints.length < 3) {
+    box.textContent = 'Đã chọn ' + farmMapPoints.length + ' điểm. Chạm ít nhất 3 góc ruộng để tính diện tích.';
+    return;
+  }
+  const m2 = polygonAreaM2(farmMapPoints);
+  const cong = Number(document.getElementById('congSize')?.value || 1000);
+  box.innerHTML = 'Diện tích ước tính: <b>' + m2.toLocaleString('vi-VN',{maximumFractionDigits:1}) +
+    ' m²</b><br><b>' + (m2/10000).toLocaleString('vi-VN',{maximumFractionDigits:4}) +
+    ' ha</b> · <b>' + (m2/cong).toLocaleString('vi-VN',{maximumFractionDigits:2}) +
+    ' công</b><br><small>Kết quả phụ thuộc độ chính xác khi chạm các góc trên bản đồ.</small>';
+}
+function undoFarmPoint(){
+  if (!farmMapPoints.length) return;
+  farmMapPoints.pop();
+  redrawFarmPolygon();
+}
+function clearFarmPolygon(){
+  farmMapPoints = [];
+  redrawFarmPolygon();
+}
+function useMeasuredArea(){
+  if (farmMapPoints.length < 3) {
+    alert('Hãy chạm ít nhất 3 góc ruộng trên bản đồ trước.');
+    return;
+  }
+  const m2 = polygonAreaM2(farmMapPoints);
+  document.getElementById('area').value = (m2/10000).toFixed(4);
+  document.getElementById('farmResult').style.display = 'block';
+  document.getElementById('farmResult').textContent = 'Đã điền diện tích đo được: ' + (m2/10000).toLocaleString('vi-VN',{maximumFractionDigits:4}) + ' ha. Nhấn lưu để cập nhật ruộng.';
+  document.getElementById('farm').scrollIntoView({behavior:'smooth'});
+}
+
 async function loadWeather(){
   const latInput = document.getElementById('weatherLat');
   const lonInput = document.getElementById('weatherLon');
@@ -1220,7 +1352,7 @@ async function loadWeather(){
     currentBox.style.display = 'block';
 
     let rows = '';
-    for(let i=0;i<(d.time || []).length;i++){
+    for(let i=0;i<Math.min(3,(d.time || []).length);i++){
       rows += '<tr><td>' + escWeather(d.time[i]) + '</td>' +
         '<td>' + fmt(d.temperature_2m_min[i]) + ' °C</td>' +
         '<td>' + fmt(d.temperature_2m_max[i]) + ' °C</td>' +
@@ -1228,11 +1360,18 @@ async function loadWeather(){
     }
 
     forecastBox.innerHTML =
-      '<h3>📅 Dự báo 7 ngày</h3>' +
+      '<h3>📅 Dự báo 3 ngày tới (hôm nay, ngày mai, ngày kia)</h3>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">' +
       '<thead><tr><th>Ngày</th><th>Thấp nhất</th><th>Cao nhất</th><th>Khả năng mưa</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>' +
       '<small>Nguồn dữ liệu: Open-Meteo. Dự báo chỉ mang tính tham khảo.</small>';
+    const rainChance = Number((d.precipitation_probability_max || [])[0] || 0);
+    const maxTemp = Number((d.temperature_2m_max || [])[0] || 0);
+    let careAdvice = 'Theo dõi dự báo trước khi bón phân hoặc phun thuốc.';
+    if (rainChance >= 60) careAdvice = '⚠️ Khả năng mưa cao hôm nay. Cân nhắc hoãn phun thuốc/bón phân qua lá và kiểm tra thoát nước.';
+    else if (maxTemp >= 35) careAdvice = '⚠️ Trời nóng. Kiểm tra mực nước và tránh phun thuốc lúc nắng gắt.';
+    else if (rainChance <= 20) careAdvice = 'Khả năng mưa thấp. Kiểm tra độ ẩm đất và mực nước ruộng trước khi tưới.';
+    forecastBox.innerHTML += '<div class="result"><b>🌾 Gợi ý chăm sóc:</b> ' + escWeather(careAdvice) + '</div>';
     forecastBox.style.display = 'block';
     status.textContent = 'Đã cập nhật thời tiết thành công!';
   }catch(error){
@@ -1268,7 +1407,7 @@ async function loadWeather(){
 
   function showSignedOut(text = '') {
     token = null;
-    try { sessionStorage.removeItem('nx_auth_token'); } catch (_) {}
+    try { localStorage.removeItem('nx_auth_token'); } catch (_) {}
     overlay.hidden = false;
     bar.hidden = true;
     accountName.textContent = '';
@@ -1319,8 +1458,8 @@ async function loadWeather(){
       say('Tên tài khoản phải có 3–24 ký tự: chữ, số hoặc dấu gạch dưới.');
       return;
     }
-    if (pass.length < 8 || pass.length > 128) {
-      say('Mật khẩu phải có từ 8 đến 128 ký tự.');
+    if (!pass.length || (mode === 'register' && pass.length < 10) || pass.length > 128) {
+      say(mode === 'register' ? 'Mật khẩu đăng ký phải có từ 10 đến 128 ký tự.' : 'Vui lòng nhập mật khẩu (tối đa 128 ký tự).');
       return;
     }
 
@@ -1350,8 +1489,8 @@ async function loadWeather(){
           throw new Error('Máy chủ trả về thông tin đăng nhập không hợp lệ.');
         }
         token = result.token;
-        // Token chỉ được giữ trong sessionStorage, không lưu mật khẩu.
-        try { sessionStorage.setItem('nx_auth_token', token); }
+        // Token được lưu cục bộ để giữ phiên khi đóng/mở lại ứng dụng; không lưu mật khẩu.
+        try { localStorage.setItem('nx_auth_token', token); }
         catch (_) { throw new Error('Không thể lưu phiên trên thiết bị. Hãy thử lại.'); }
         showSignedIn(result.user);
       }
@@ -1384,7 +1523,7 @@ async function loadWeather(){
 
   async function init() {
     try {
-      token = sessionStorage.getItem('nx_auth_token');
+      token = localStorage.getItem('nx_auth_token');
     } catch (_) {
       token = null;
     }
