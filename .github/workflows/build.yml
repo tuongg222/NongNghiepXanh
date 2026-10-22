@@ -24,7 +24,7 @@ jobs:
           java-version: '17'
 
       - name: Cai Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Cai Android platform
         run: |
