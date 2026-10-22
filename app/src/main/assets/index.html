@@ -105,10 +105,10 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
     <small>Dữ liệu mùa vụ được lưu trên thiết bị này.</small>
   </div>
   <div class="grid">
-    <div class="tile"><div class="emoji">🌱</div><b>Quản lý mùa vụ</b></div>
-    <div class="tile"><div class="emoji">🌦️</div><b>Thời tiết</b></div>
-    <div class="tile"><div class="emoji">🔬</div><b>Hỗ trợ bệnh cây</b></div>
-    <div class="tile"><div class="emoji">💰</div><b>Thu chi nông trại</b></div>
+    <button type="button" class="tile" onclick="showPage('farm',document.querySelectorAll('nav button')[1])" style="color:#235336"><div class="emoji">🌾</div><b>Quản lý mùa vụ & đo công đất</b></button>
+    <button type="button" class="tile" onclick="showPage('weather',document.querySelectorAll('nav button')[2]);loadWeather()" style="color:#235336"><div class="emoji">🌦️</div><b>Dự báo 3 ngày</b></button>
+    <button type="button" class="tile" onclick="showPage('disease',document.querySelectorAll('nav button')[7])" style="color:#235336"><div class="emoji">🔬</div><b>AI chẩn đoán bệnh lúa</b></button>
+    <button type="button" class="tile" onclick="showPage('care',document.querySelectorAll('nav button')[3])" style="color:#235336"><div class="emoji">⏰</div><b>Lịch nhắc chăm sóc</b></button>
   </div>
   <div class="card" style="margin-top:14px">
     <h2>🤖 Trợ lý nông nghiệp AI</h2>
@@ -126,7 +126,10 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
     <input id="weatherLat" type="number" step="any" value="10.03" placeholder="Ví dụ: 10.03">
     <label>Kinh độ</label>
     <input id="weatherLon" type="number" step="any" value="105.78" placeholder="Ví dụ: 105.78">
-    <button onclick="loadWeather()">🔄 Cập nhật thời tiết</button>
+    <div class="map-actions">
+      <button type="button" onclick="useCurrentLocationForWeather()">📍 Dùng GPS hiện tại</button>
+      <button type="button" onclick="loadWeather()">🔄 Cập nhật thời tiết</button>
+    </div>
     <small>Tọa độ mặc định là vị trí thử nghiệm gần Cần Thơ. Hãy thay bằng tọa độ ruộng của bạn.</small>
     <div id="weatherStatus" class="result">Nhấn “Cập nhật thời tiết” để tải dữ liệu.</div>
   </div>
@@ -136,7 +139,7 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
 
 <section id="farm" class="page">
   <div class="card">
-    <h2>🌾 Thông tin ruộng lúa</h2>
+    <h2>🌾 Quản lý mùa vụ và ruộng lúa</h2>\n    <p>Thêm nhiều ruộng/vụ, lưu giống lúa, ngày sạ, giai đoạn và ngày thu hoạch dự kiến.</p>
     <label>Tên ruộng</label><input id="fieldName" placeholder="Ví dụ: Ruộng sau nhà">
     <label>Giống lúa</label><input id="variety" placeholder="Ví dụ: OM18">
     <label>Diện tích (ha)</label><input id="area" type="number" min="0" step="0.01" placeholder="Ví dụ: 1.5">
@@ -158,8 +161,10 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
     <p>Chạm các góc ruộng theo thứ tự để vẽ ranh giới. Cần kết nối Internet để tải bản đồ.</p>
     <div id="farmMap" aria-label="Bản đồ đo diện tích ruộng"></div>
     <div class="map-actions">
+      <button type="button" onclick="useCurrentLocationForMap()">📍 Đến vị trí GPS</button>
       <button type="button" onclick="undoFarmPoint()">↩️ Bỏ điểm cuối</button>
       <button type="button" onclick="clearFarmPolygon()">🧹 Xóa đường vẽ</button>
+      <button type="button" onclick="clearFarmPolygon()">🗑️ Làm lại ranh giới</button>
     </div>
     <label>Quy đổi 1 công</label>
     <select id="congSize" onchange="updateFarmAreaResult()">
@@ -178,7 +183,7 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
 
 <section id="care" class="page">
   <div class="card">
-    <h2>📅 Lịch chăm sóc</h2>
+    <h2>⏰ Lịch chăm sóc và báo thức</h2>\n    <p>Đặt ngày giờ nhắc bón phân, phun thuốc, kiểm tra sâu bệnh, tưới nước hoặc thu hoạch. Hãy cho phép thông báo khi Android hỏi.</p>
     <label>Chọn ruộng</label>
     <select id="taskFarm">
       <option value="">Tất cả ruộng / chưa chọn</option>
@@ -267,7 +272,7 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
 
 <section id="disease" class="page">
   <div class="card">
-    <h2>🔬 Kiểm tra bệnh lúa</h2>
+    <h2>🤖 AI chẩn đoán bệnh lúa bằng ảnh</h2>
     <p>Chụp ảnh lá, thân hoặc bông lúa để lưu lại và theo dõi.</p>
 
     <label for="diseaseFarm">Chọn ruộng</label>
@@ -1194,6 +1199,39 @@ let farmMapPoints = [];
 let farmMapLine = null;
 let farmMapPolygon = null;
 let farmMapMarkers = [];
+
+function useCurrentLocationForWeather(){
+  const status = document.getElementById('weatherStatus');
+  if (!navigator.geolocation) {
+    status.textContent = 'Thiết bị không hỗ trợ định vị GPS.';
+    return;
+  }
+  status.textContent = 'Đang lấy vị trí GPS...';
+  navigator.geolocation.getCurrentPosition(position => {
+    document.getElementById('weatherLat').value = position.coords.latitude.toFixed(6);
+    document.getElementById('weatherLon').value = position.coords.longitude.toFixed(6);
+    loadWeather();
+  }, error => {
+    status.textContent = 'Không lấy được vị trí. Hãy bật GPS và cấp quyền vị trí cho ứng dụng. (' + error.message + ')';
+  }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
+}
+function useCurrentLocationForMap(){
+  const element = document.getElementById('farmAreaResult');
+  if (!navigator.geolocation) {
+    element.textContent = 'Thiết bị không hỗ trợ định vị GPS.';
+    return;
+  }
+  element.textContent = 'Đang lấy vị trí GPS...';
+  navigator.geolocation.getCurrentPosition(position => {
+    if (!farmMapInstance) initFarmMap();
+    if (farmMapInstance) {
+      farmMapInstance.setView([position.coords.latitude, position.coords.longitude], 17);
+      element.textContent = 'Đã chuyển bản đồ đến vị trí GPS. Chạm các góc thửa ruộng để đo diện tích.';
+    }
+  }, error => {
+    element.textContent = 'Không lấy được vị trí. Hãy bật GPS và cấp quyền vị trí cho ứng dụng. (' + error.message + ')';
+  }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
+}
 
 function initFarmMap(){
   const element = document.getElementById('farmMap');

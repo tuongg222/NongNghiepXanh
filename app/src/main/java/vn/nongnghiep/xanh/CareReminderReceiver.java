@@ -13,7 +13,12 @@ public class CareReminderReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        String title = intent.getStringExtra("title");
+        if (intent != null && Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+            CareReminderBridge.rescheduleAll(context);
+            return;
+        }
+
+        String title = intent == null ? null : intent.getStringExtra("title");
         if (title == null || title.trim().isEmpty()) {
             title = "Lịch chăm sóc nông nghiệp";
         }
@@ -46,7 +51,7 @@ public class CareReminderReceiver extends BroadcastReceiver {
                 .setAutoCancel(true)
                 .setDefaults(Notification.DEFAULT_ALL);
 
-        String id = intent.getStringExtra("reminder_id");
+        String id = intent == null ? null : intent.getStringExtra("reminder_id");
         int notificationId = id == null ? title.hashCode() : id.hashCode();
 
         manager.notify(notificationId, builder.build());
