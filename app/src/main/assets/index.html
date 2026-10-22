@@ -47,7 +47,7 @@ padding:22px;box-shadow:0 8px 30px #173d1720}
 #nxAccountBar[hidden]{display:none}
 #nxAccountBar{display:flex;align-items:center;justify-content:space-between;gap:8px;
 padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
-#nxAccountBar button{width:auto;margin:0;padding:8px 12px;font-size:14px;flex-shrink:0}\n#nxAccountBar span{min-width:0;flex:1;overflow-wrap:anywhere}\n#nxAccountName{display:inline-block;max-width:65vw;overflow-wrap:anywhere;word-break:break-word}
+#nxAccountBar button{width:auto;margin:0;padding:8px 12px;font-size:14px}
 
 </style>
 </head>
@@ -156,9 +156,8 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
   <div class="card">
     <h2>🗺️ Đo diện tích ruộng trên bản đồ</h2>
     <p>Chạm các góc ruộng theo thứ tự để vẽ ranh giới. Cần kết nối Internet để tải bản đồ.</p>
-    <div id="farmMap" aria-label="Bản đồ đo diện tích ruộng"></div>
+    <div id="farmMapNotice" role="status" style="padding:8px 10px;font-size:13px">Đang tải bản đồ… cần kết nối Internet.</div><div id="farmMap" aria-label="Bản đồ đo diện tích ruộng"></div>
     <div class="map-actions">
-      <button type="button" onclick="goToFarmGPS()">📍 Đến vị trí GPS</button>
       <button type="button" onclick="undoFarmPoint()">↩️ Bỏ điểm cuối</button>
       <button type="button" onclick="clearFarmPolygon()">🧹 Xóa đường vẽ</button>
     </div>
@@ -1207,41 +1206,27 @@ function initFarmMap(){
     return;
   }
   farmMapInstance = L.map(element).setView([10.03, 105.78], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap'
+  const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, subdomains: 'abc',
+    attribution: '&copy; OpenStreetMap contributors',
+    crossOrigin: true
   }).addTo(farmMapInstance);
+  let tileErrorShown = false;
+  tileLayer.on('tileerror', function(){
+    if (tileErrorShown) return;
+    tileErrorShown = true;
+    const note = document.getElementById('farmMapNotice');
+    if (note) note.textContent = 'Không tải được ảnh bản đồ. Hãy kiểm tra Internet hoặc tắt VPN/chặn quảng cáo rồi mở lại. Bạn vẫn có thể thử đo sau khi bản đồ hiện.';
+  });
+  tileLayer.on('tileload', function(){
+    const note = document.getElementById('farmMapNotice');
+    if (note) note.textContent = 'Chạm lần lượt ít nhất 3 góc ruộng trên bản đồ để tính diện tích.';
+  });
   farmMapInstance.on('click', function(e){
     farmMapPoints.push([e.latlng.lat, e.latlng.lng]);
     redrawFarmPolygon();
   });
   setTimeout(() => farmMapInstance && farmMapInstance.invalidateSize(), 250);
-}
-function goToFarmGPS(){
-  const status = document.getElementById('farmAreaResult');
-  if (!navigator.geolocation) {
-    status.textContent = 'Thiết bị không hỗ trợ định vị. Bạn vẫn có thể chạm trực tiếp lên bản đồ để đánh dấu góc ruộng.';
-    return;
-  }
-  status.textContent = 'Đang lấy vị trí GPS… Hãy bật Vị trí/GPS và cho phép ứng dụng truy cập vị trí.';
-  navigator.geolocation.getCurrentPosition(
-    function(pos){
-      const point = [pos.coords.latitude, pos.coords.longitude];
-      if (!farmMapInstance) initFarmMap();
-      if (farmMapInstance) {
-        farmMapInstance.setView(point, 18);
-        farmMapPoints.push(point);
-        redrawFarmPolygon();
-        status.textContent = 'Đã thêm vị trí GPS làm điểm ' + farmMapPoints.length + '. Hãy tiếp tục đánh dấu các góc còn lại của ruộng.';
-      }
-    },
-    function(err){
-      const reason = err && err.code === 1 ? 'Quyền vị trí đang bị từ chối. Vào Cài đặt Android > Ứng dụng > Nông Nghiệp Xanh > Quyền > Vị trí, cho phép khi dùng ứng dụng.' :
-        err && err.code === 2 ? 'Không lấy được tín hiệu vị trí. Bật GPS/Độ chính xác vị trí và thử ngoài trời.' :
-        'Hết thời gian chờ GPS. Bật GPS rồi thử lại.';
-      status.textContent = reason + ' Bạn cũng có thể chạm trực tiếp lên bản đồ để đánh dấu ranh giới.';
-    },
-    {enableHighAccuracy:true, timeout:20000, maximumAge:10000}
-  );
 }
 function redrawFarmPolygon(){
   if (!farmMapInstance) return;
@@ -1560,7 +1545,7 @@ async function loadWeather(){
       return;
     }
     try {
-      const result = await api('/auth/me');
+      const result = await api('/auth/me', { method: 'POST' });
       if (!result.user) throw new Error('Phiên không hợp lệ.');
       showSignedIn(result.user);
     } catch (_) {

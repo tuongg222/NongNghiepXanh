@@ -159,13 +159,19 @@ if (url.pathname.startsWith("/auth/")) {
         result: answer
       });
     } catch (error) {
-      const detail = String(error?.message || error?.name || "Unknown error").slice(0, 240);
+      const detail = String(error?.message || error || "Unknown error");
       console.error("Workers AI error:", detail);
-
+      if (detail.includes("5016") || /must submit the prompt ['\"]agree['\"]/i.test(detail)) {
+        return reply({
+          error: "Cloudflare yêu cầu chủ dự án chấp nhận giấy phép Meta Llama trước khi dùng mô hình. Mở Cloudflare Workers AI, chọn llama-3.2-11b-vision-instruct và hoàn tất bước chấp nhận giấy phép. Ứng dụng không tự đồng ý thay bạn.",
+          code: "MODEL_LICENSE_REQUIRED",
+          license: "https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/LICENSE"
+        }, 503);
+      }
       return reply({
-        error: "Workers AI gặp lỗi khi chạy mô hình: " + detail,
-        aiConnected: false,
-        hint: "Kiểm tra binding AI trong wrangler.toml/Cloudflare, model access và giới hạn tài khoản."
+        error: "Workers AI gặp lỗi: " + detail.slice(0, 300),
+        code: "WORKERS_AI_ERROR",
+        aiConnected: false
       }, 502);
     }
   }
