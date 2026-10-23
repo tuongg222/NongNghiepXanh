@@ -1385,21 +1385,58 @@ function initFarmMap(){
     return;
   }
   farmMapInstance = L.map(element).setView([10.03, 105.78], 13);
-  const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, subdomains: 'abc',
-    attribution: '&copy; OpenStreetMap contributors',
-    crossOrigin: true
-  }).addTo(farmMapInstance);
+  const streetLayer = L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      maxZoom: 19,
+      subdomains: 'abc',
+      attribution: '&copy; OpenStreetMap contributors'
+    }
+  );
+
+  const satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 19,
+      attribution: 'Imagery &copy; Esri and its imagery providers'
+    }
+  );
+
+  streetLayer.addTo(farmMapInstance);
+
+  L.control.layers(
+    {
+      'Bản đồ thường': streetLayer,
+      'Vệ tinh': satelliteLayer
+    },
+    null,
+    { collapsed: false }
+  ).addTo(farmMapInstance);
+
+  function setMapNotice(message) {
+    const note = document.getElementById('farmMapNotice');
+    if (note) note.textContent = message;
+  }
+
   let tileErrorShown = false;
-  tileLayer.on('tileerror', function(){
-    if (tileErrorShown) return;
-    tileErrorShown = true;
-    const note = document.getElementById('farmMapNotice');
-    if (note) note.textContent = 'Không tải được ảnh bản đồ. Hãy kiểm tra Internet hoặc tắt VPN/chặn quảng cáo rồi mở lại. Bạn vẫn có thể thử đo sau khi bản đồ hiện.';
-  });
-  tileLayer.on('tileload', function(){
-    const note = document.getElementById('farmMapNotice');
-    if (note) note.textContent = 'Chạm lần lượt ít nhất 3 góc ruộng trên bản đồ để tính diện tích.';
+  [streetLayer, satelliteLayer].forEach(function(layer) {
+    layer.on('tileerror', function() {
+      if (layer !== farmMapInstance._layers[Object.keys(farmMapInstance._layers).find(
+        function(k) { return farmMapInstance._layers[k] === layer; }
+      )]) return;
+      if (tileErrorShown) return;
+      tileErrorShown = true;
+      setMapNotice(
+        'Không tải được ảnh bản đồ. Hãy kiểm tra Internet, VPN hoặc bộ lọc mạng rồi thử lại.'
+      );
+    });
+
+    layer.on('tileload', function() {
+      tileErrorShown = false;
+      setMapNotice(
+        'Chọn lớp Vệ tinh hoặc Bản đồ thường. Chạm ít nhất 3 góc ruộng để tính diện tích.'
+      );
+    });
   });
   farmMapInstance.on('click', function(e){
     farmMapPoints.push([e.latlng.lat, e.latlng.lng]);
