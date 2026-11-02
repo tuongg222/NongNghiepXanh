@@ -9,28 +9,35 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#f2f7f0;color:#203327;font-family:Arial,sans-serif}
+body{margin:0;background:#f2f7f0;color:#17271c;font-family:Arial,sans-serif;font-size:17px;line-height:1.55}
 header{background:linear-gradient(135deg,#176b3a,#36a45e);color:white;padding:24px 18px 30px;border-radius:0 0 24px 24px}
 header h1{margin:0 0 8px;font-size:25px}
 header p{margin:0;opacity:.9}
-main{padding:16px;max-width:650px;margin:auto}
+main{padding:16px;max-width:760px;margin:auto}
 .card{background:white;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 3px 12px #173d1710}
-h2{font-size:18px;margin:0 0 12px}
+h2{font-size:21px;line-height:1.35;margin:0 0 14px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.tile{background:#e4f3e5;border-radius:13px;padding:14px 10px;text-align:center}
+.tile{background:#e4f3e5;border:1px solid #cde5cf;border-radius:13px;padding:14px 10px;text-align:center;color:#203327;cursor:pointer;min-height:100px}
 .tile .emoji{font-size:27px}
 .tile b{display:block;margin-top:7px;font-size:14px}
-label{display:block;font-size:14px;margin:12px 0 6px}
-input,select,button{width:100%;padding:12px;border-radius:10px;border:1px solid #d5e1d4;font-size:16px}
+.tile:focus-visible{outline:3px solid #176b3a;outline-offset:2px}
+.location-line{padding:10px 12px;border-radius:10px;background:#eef7ef;line-height:1.6;margin-top:10px;overflow-wrap:anywhere}
+label{display:block;font-size:17px;font-weight:600;margin:14px 0 7px}
+input,select,button{width:100%;padding:14px;border-radius:10px;border:1px solid #b8cbb9;font-size:17px;line-height:1.4}
 button{background:#218447;color:white;border:0;font-weight:bold;margin-top:12px}
-.result{background:#e5f5e8;padding:14px;border-radius:10px;margin-top:12px;line-height:1.8}
-small{color:#64756a}
+.result{background:#e5f5e8;padding:16px;border-radius:10px;margin-top:12px;line-height:1.75;font-size:17px}
+small{color:#435448;font-size:14px;line-height:1.55}
 nav{display:flex;gap:8px;overflow:auto;margin-bottom:14px}
 nav button{min-width:max-content;width:auto;margin:0;padding:10px 13px;background:#dcebdd;color:#235336}
 nav button.active{background:#218447;color:white}
 .page{display:none}.page.active{display:block}
 footer{text-align:center;color:#718072;padding:12px;font-size:12px}
-#farmMap{height:300px;border-radius:12px;overflow:hidden;background:#e4eee3}
+#farmMap{height:clamp(360px,58vh,520px);min-height:360px;width:100%;border:1px solid #aabdab;border-radius:12px;overflow:hidden;background:#e4eee3;isolation:isolate;z-index:0}
+#farmMap .leaflet-control{font-size:16px}
+#farmMap .leaflet-control-layers{max-width:190px}
+#farmMap .leaflet-control-layers-toggle{width:44px;height:44px}
+#farmMap .leaflet-control-zoom a{width:44px;height:44px;line-height:44px;font-size:25px}
+#farmMapNotice{font-size:16px!important;line-height:1.5;background:#fffbe6;border:1px solid #e8d98a;border-radius:8px;margin-bottom:8px}
 .map-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 #nxAuthOverlay{position:fixed;inset:0;z-index:99999;background:#f2f7f0;
@@ -115,11 +122,11 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
     <button type="button" style="font-size:22px;min-height:64px"
       onclick="showPage('weighing',this);renderWeighing()">BẮT ĐẦU CÂN LÚA</button>
   </div>
-  <div class="grid">
-    <div class="tile"><div class="emoji">🌱</div><b>Quản lý mùa vụ</b></div>
-    <div class="tile"><div class="emoji">🌦️</div><b>Thời tiết</b></div>
-    <div class="tile"><div class="emoji">🔬</div><b>Hỗ trợ bệnh cây</b></div>
-    <div class="tile"><div class="emoji">💰</div><b>Thu chi nông trại</b></div>
+  <div class="grid" aria-label="Lối tắt chức năng">
+    <button type="button" class="tile" onclick="showPage('farm',this)"><div class="emoji">🌱</div><b>Quản lý mùa vụ</b></button>
+    <button type="button" class="tile" onclick="showPage('weather',this);loadWeather()"><div class="emoji">🌦️</div><b>Thời tiết</b></button>
+    <button type="button" class="tile" onclick="showPage('disease',this)"><div class="emoji">🔬</div><b>Hỗ trợ bệnh cây</b></button>
+    <button type="button" class="tile" onclick="showPage('finance',this)"><div class="emoji">💰</div><b>Thu chi nông trại</b></button>
   </div>
   <div class="card" style="margin-top:14px">
     <h2>🤖 Trợ lý nông nghiệp AI</h2>
@@ -133,12 +140,14 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
   <div class="card">
     <h2>🌦️ Thời tiết khu vực ruộng</h2>
     <p>Theo dõi thời tiết để chủ động chăm sóc cây trồng.</p>
-    <label>Vĩ độ</label>
-    <input id="weatherLat" type="number" step="any" value="10.03" placeholder="Ví dụ: 10.03">
-    <label>Kinh độ</label>
-    <input id="weatherLon" type="number" step="any" value="105.78" placeholder="Ví dụ: 105.78">
-    <button onclick="loadWeather()">🔄 Cập nhật thời tiết</button>
-    <small>Tọa độ mặc định là vị trí thử nghiệm gần Cần Thơ. Hãy thay bằng tọa độ ruộng của bạn.</small>
+    <button type="button" onclick="locateWeatherPosition()">📍 Lấy vị trí GPS hiện tại</button>
+    <div id="weatherLocationInfo" class="location-line" aria-live="polite">Chưa xác định vị trí. Cho phép GPS hoặc nhập tọa độ ruộng bên dưới.</div>
+    <label for="weatherLat">Vĩ độ</label>
+    <input id="weatherLat" type="number" step="any" placeholder="Ví dụ: 10.03">
+    <label for="weatherLon">Kinh độ</label>
+    <input id="weatherLon" type="number" step="any" placeholder="Ví dụ: 105.78">
+    <button type="button" onclick="loadWeather()">🔄 Cập nhật thời tiết</button>
+    <small>Dự báo được lấy theo tọa độ ruộng đã chọn; GPS chính xác tùy thiết bị và điều kiện thu sóng.</small>
     <div id="weatherStatus" class="result">Nhấn “Cập nhật thời tiết” để tải dữ liệu.</div>
   </div>
   <div id="weatherCurrent" class="card" style="display:none"></div>
@@ -151,23 +160,25 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
     <label>Tên ruộng</label><input id="fieldName" placeholder="Ví dụ: Ruộng sau nhà">
     <label>Giống lúa</label><input id="variety" placeholder="Ví dụ: OM18">
     <label>Diện tích (ha)</label><input id="area" type="number" min="0" step="0.01" placeholder="Ví dụ: 1.5">
-    <label>Ngày sạ</label><input id="sowDate" type="date">
+    <label>Ngày sạ</label><input id="sowDate" type="date" onchange="renderCropTimeline()">
     <label>Giai đoạn mùa vụ</label>
-    <select id="farmStage">
+    <select id="farmStage" onchange="renderCropTimeline()">
       <option value="Chuẩn bị đất">Chuẩn bị đất</option><option value="Đã sạ">Đã sạ</option>
       <option value="Mạ">Mạ</option><option value="Đẻ nhánh">Đẻ nhánh</option>
       <option value="Làm đòng">Làm đòng</option><option value="Trổ bông">Trổ bông</option>
       <option value="Chắc xanh - chín">Chắc xanh - chín</option><option value="Đã thu hoạch">Đã thu hoạch</option>
     </select>
-    <label>Ngày thu hoạch dự kiến</label><input id="harvestDate" type="date">
+    <label>Ngày thu hoạch dự kiến</label><input id="harvestDate" type="date" onchange="renderCropTimeline()">
     <button onclick="saveFarm()">Lưu thông tin ruộng / mùa vụ</button>
     <div id="farmResult" class="result" style="display:none"></div>
+    <div id="cropTimeline" class="result" aria-live="polite">Nhập ngày sạ và giai đoạn hiện tại để xem tóm tắt mùa vụ.</div>
   </div>
 
   <div class="card">
     <h2>🗺️ Đo diện tích ruộng trên bản đồ</h2>
     <p>Chạm các góc ruộng theo thứ tự để vẽ ranh giới. Cần kết nối Internet để tải bản đồ.</p>
     <div id="farmMapNotice" role="status" style="padding:8px 10px;font-size:13px">Đang tải bản đồ… cần kết nối Internet.</div><div id="farmMap" aria-label="Bản đồ đo diện tích ruộng"></div>
+    <button type="button" onclick="locateFarmMap()">📍 Đưa bản đồ đến vị trí GPS / ruộng</button>
     <div class="map-actions">
       <button type="button" onclick="undoFarmPoint()">↩️ Bỏ điểm cuối</button>
       <button type="button" onclick="clearFarmPolygon()">🧹 Xóa đường vẽ</button>
@@ -336,6 +347,12 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
       <option value="">Chưa gắn ruộng</option>
     </select>
 
+    <label for="diseaseStage">Giai đoạn cây lúa</label>
+    <select id="diseaseStage">
+      <option value="">Chưa rõ</option><option>Mạ</option><option>Đẻ nhánh</option><option>Làm đòng</option><option>Trổ bông</option><option>Chắc xanh - chín</option>
+    </select>
+    <label for="diseaseSymptoms">Triệu chứng và thời điểm xuất hiện (nếu biết)</label>
+    <textarea id="diseaseSymptoms" rows="3" maxlength="1200" placeholder="Ví dụ: vết vàng ở đầu lá, xuất hiện 3 ngày nay, khoảng 20% diện tích ruộng..."></textarea>
     <label for="diseasePhoto">Chụp hoặc chọn ảnh cây lúa</label>
     <input id="diseasePhoto" type="file" accept="image/*" capture="environment">
 
@@ -430,10 +447,16 @@ padding:10px 16px;background:#e4f3e5;color:#176b3a;font-size:14px}
 
 function showPage(id,btn){
  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
- document.getElementById(id).classList.add('active');
+ const page = document.getElementById(id);
+ if (page) page.classList.add('active');
  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
- if (btn) btn.classList.add('active');
- if (id === 'farm') setTimeout(initFarmMap, 150);
+ if (btn && btn.closest && btn.closest('nav')) btn.classList.add('active');
+ else {
+  const target = "showPage('" + id + "'";
+  const navButton = Array.from(document.querySelectorAll('nav button')).find(b => (b.getAttribute('onclick') || '').includes(target));
+  if (navButton) navButton.classList.add('active');
+ }
+ if (id === 'farm') setTimeout(() => { initFarmMap(); if (farmMapInstance) { farmMapInstance.invalidateSize({animate:false, pan:false}); setTimeout(() => farmMapInstance && farmMapInstance.invalidateSize({animate:false, pan:false}), 350); } }, 180);
 }
 function getFarms(){
  try {
@@ -502,6 +525,44 @@ function saveFarm(){
  const saveButton = document.querySelector('#farm button');
  if (saveButton) saveButton.textContent = 'Lưu thông tin ruộng';
  renderFarms();
+ renderCropTimeline();
+}
+
+function renderCropTimeline(){
+ const box=document.getElementById('cropTimeline');
+ if(!box) return;
+ const sow=document.getElementById('sowDate')?.value || '';
+ const harvest=document.getElementById('harvestDate')?.value || '';
+ const stage=document.getElementById('farmStage')?.value || 'Chưa cập nhật';
+ const advice={
+  'Chuẩn bị đất':'Kiểm tra bờ bao, mặt ruộng, đường cấp/thoát nước và vệ sinh đồng trước khi xuống giống.',
+  'Đã sạ':'Theo dõi mọc mầm và nước ruộng; kiểm tra ốc, chim chuột và làm theo khuyến cáo kỹ thuật tại địa phương.',
+  'Mạ':'Thăm đồng thường xuyên, quan sát mật độ cây và dấu hiệu sâu bệnh; không phun thuốc khi chưa xác định nguyên nhân.',
+  'Đẻ nhánh':'Theo dõi số dảnh, nước và màu lá; bón phân cân đối theo khuyến cáo cho giống và đất tại địa phương.',
+  'Làm đòng':'Thăm đồng để phát hiện sớm sâu bệnh và theo dõi nước; tránh bón thừa đạm hoặc phối trộn thuốc tùy tiện.',
+  'Trổ bông':'Theo dõi thời tiết, sâu bệnh và tình trạng nước; chỉ dùng thuốc khi có căn cứ và đúng nhãn, thời gian cách ly.',
+  'Chắc xanh - chín':'Kiểm tra độ chín và dự báo mưa để chuẩn bị thu hoạch, sân phơi và vận chuyển; tuân thủ thời gian cách ly nếu đã dùng thuốc.',
+  'Đã thu hoạch':'Ghi năng suất, chi phí và tình trạng sâu bệnh cuối vụ; vệ sinh đồng và lập kế hoạch vụ tiếp theo.'
+ };
+ const parseDate=v=>v?new Date(v+'T00:00:00'):null;
+ const today=new Date(); today.setHours(0,0,0,0);
+ const lines=['<b>📋 Tóm tắt mùa vụ</b>','<p>Giai đoạn đã chọn: <b>'+esc(stage)+'</b></p>'];
+ if(sow){
+  const d=parseDate(sow);
+  if(Number.isNaN(d.getTime())) lines.push('<p>Ngày sạ không hợp lệ.</p>');
+  else {
+   const age=Math.floor((today-d)/86400000);
+   lines.push(age<0?'<p>⚠️ Ngày sạ đang ở tương lai; hãy kiểm tra lại.</p>':'<p>🌱 Số ngày từ ngày sạ: <b>'+age+' ngày</b> (ước tính theo lịch, không thay thế quan sát thực tế).</p>');
+   if(harvest){ const h=parseDate(harvest); const remaining=Math.ceil((h-today)/86400000); const span=Math.floor((h-d)/86400000);
+    if(Number.isNaN(h.getTime())) lines.push('<p>Ngày thu hoạch không hợp lệ.</p>');
+    else if(h<d) lines.push('<p>⚠️ Ngày thu hoạch dự kiến trước ngày sạ. Hãy kiểm tra lại.</p>');
+    else lines.push('<p>🗓️ Khoảng từ ngày sạ đến thu hoạch dự kiến: <b>'+span+' ngày</b>; '+(remaining<0?'đã qua '+Math.abs(remaining)+' ngày so với lịch dự kiến.':remaining===0?'đến ngày dự kiến hôm nay.':'còn '+remaining+' ngày theo lịch.')+'</p>');
+   }
+  }
+ } else lines.push('<p>Chưa nhập ngày sạ nên chưa tính được số ngày mùa vụ.</p>');
+ lines.push('<p><b>Việc nên chú ý:</b> '+esc(advice[stage] || 'Thăm đồng và đối chiếu tình trạng cây thực tế.')+'</p>');
+ lines.push('<small>Gợi ý chung; lịch sinh trưởng và chăm sóc còn phụ thuộc giống, thời vụ, đất, thời tiết và khuyến cáo địa phương.</small>');
+ box.innerHTML=lines.join('');
 }
 
 function renderFarms(){
@@ -538,6 +599,7 @@ function editFarm(id){
  sowDate.value = farm.sowDate || '';
  document.getElementById('farmStage').value = farm.stage || 'Chuẩn bị đất';
  document.getElementById('harvestDate').value = farm.harvestDate || '';
+ renderCropTimeline();
  const saveButton = document.querySelector('#farm button');
  if (saveButton) saveButton.textContent = 'Lưu thay đổi';
  document.getElementById('farmResult').style.display = 'block';
@@ -1087,7 +1149,13 @@ async function saveDiseasePhoto() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: imageData })
+          body: JSON.stringify({
+            image: imageData,
+            context: [
+              document.getElementById("diseaseStage")?.value ? "Giai đoạn lúa: " + document.getElementById("diseaseStage").value : "",
+              document.getElementById("diseaseSymptoms")?.value.trim() ? "Thông tin người trồng cung cấp: " + document.getElementById("diseaseSymptoms").value.trim() : ""
+            ].filter(Boolean).join("\n").slice(0, 1600)
+          })
         }
       );
 
@@ -1200,9 +1268,9 @@ function loadDiseasePhotos() {
         heading.textContent = "🤖 Kết quả AI";
         card.appendChild(heading);
 
-        const result = document.createElement("p");
-        result.style.whiteSpace = "pre-wrap";
-        result.textContent = photo.result;
+        const result = document.createElement("div");
+        result.style.cssText = "white-space:pre-wrap;overflow-wrap:anywhere;font-size:17px;line-height:1.75;color:#17271c;margin-top:12px";
+        result.textContent = String(photo.result).replace(/\*\*/g, "").replace(/^\s*[-*]\s+/gm, "• ").replace(/\n{3,}/g, "\n\n");
         card.appendChild(result);
 
         const note = document.createElement("small");
@@ -1513,7 +1581,7 @@ function renderCultivationLogs() {
 
 const NX_BACKUP_KEYS = [
   "nx_farms", "nx_farm", "nx_tasks", "nx_transactions",
-  "nx_disease_photos", "nx_weather_daily",
+  "nx_disease_photos", "nx_weather_daily", "nx_weather_location",
   "nx_cultivation_logs", "nx_weighing_sessions"
 ];
 
@@ -1592,6 +1660,11 @@ function importNxBackup() {
       nx_transactions: Array.isArray,
       nx_disease_photos: Array.isArray,
       nx_weather_daily: Array.isArray,
+      nx_weather_location: function(v) {
+        return v !== null && typeof v === "object" && !Array.isArray(v) &&
+          Number.isFinite(Number(v.lat)) && Number(v.lat) >= -90 && Number(v.lat) <= 90 &&
+          Number.isFinite(Number(v.lon)) && Number(v.lon) >= -180 && Number(v.lon) <= 180;
+      },
       nx_cultivation_logs: Array.isArray,
       nx_weighing_sessions: Array.isArray
     };
@@ -1661,7 +1734,7 @@ function importNxBackup() {
   reader.readAsText(file);
 }
 
-loadFarm();renderTaskFarmOptions();renderTasks();syncAllCareReminders();
+loadFarm();renderTaskFarmOptions();renderTasks();syncAllCareReminders();renderCropTimeline();
 
 
 let farmMapInstance = null;
@@ -1669,6 +1742,89 @@ let farmMapPoints = [];
 let farmMapLine = null;
 let farmMapPolygon = null;
 let farmMapMarkers = [];
+let farmGpsMarker = null;
+
+function getSavedWeatherLocation(){
+  try {
+    const value = JSON.parse(localStorage.getItem('nx_weather_location') || 'null');
+    if (value && Number.isFinite(Number(value.lat)) && Number.isFinite(Number(value.lon)) &&
+        Math.abs(Number(value.lat)) <= 90 && Math.abs(Number(value.lon)) <= 180) return {lat:Number(value.lat),lon:Number(value.lon),label:String(value.label || '')};
+  } catch (_) {}
+  return null;
+}
+
+// Restore the last selected coordinates in the weather form after app restart.
+(function restoreWeatherLocationUI(){
+  const saved = getSavedWeatherLocation();
+  if (!saved) return;
+  const latInput = document.getElementById('weatherLat');
+  const lonInput = document.getElementById('weatherLon');
+  if (latInput) latInput.value = saved.lat;
+  if (lonInput) lonInput.value = saved.lon;
+  const info = document.getElementById('weatherLocationInfo');
+  if (info) info.textContent = '📍 ' + (saved.label || 'Vị trí đã chọn') + ' · ' + saved.lat.toFixed(5) + ', ' + saved.lon.toFixed(5);
+})();
+
+async function lookupLocationName(lat, lon){
+  const fallback = Number(lat).toFixed(5) + ', ' + Number(lon).toFixed(5);
+  try {
+    const url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + encodeURIComponent(lat) + '&longitude=' + encodeURIComponent(lon) + '&localityLanguage=vi';
+    const response = await fetch(url, {headers:{'Accept':'application/json'}});
+    if (!response.ok) throw new Error('Không tra được địa danh');
+    const data = await response.json();
+    const administrative = Array.isArray(data.localityInfo && data.localityInfo.administrative)
+      ? data.localityInfo.administrative.map(item => item && item.name).filter(Boolean) : [];
+    const parts = [data.locality, data.city, data.principalSubdivision, ...administrative].filter(Boolean);
+    return [...new Set(parts)].slice(0, 4).join(', ') || fallback;
+  } catch (_) { return fallback; }
+}
+
+function setWeatherLocation(lat, lon, label){
+  const value = {lat:Number(lat),lon:Number(lon),label:String(label || '')};
+  try { localStorage.setItem('nx_weather_location', JSON.stringify(value)); } catch (_) {}
+  const info = document.getElementById('weatherLocationInfo');
+  if (info) info.textContent = '📍 ' + (value.label || 'Vị trí đã chọn') + ' · ' + value.lat.toFixed(5) + ', ' + value.lon.toFixed(5);
+}
+
+function locateWeatherPosition(){
+  const status = document.getElementById('weatherStatus');
+  if (!navigator.geolocation) { if(status) status.textContent = 'Thiết bị không hỗ trợ GPS. Bạn có thể nhập tọa độ thủ công.'; return; }
+  if(status) status.textContent = 'Đang xác định vị trí GPS… hãy cho phép quyền vị trí.';
+  navigator.geolocation.getCurrentPosition(async function(pos){
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    document.getElementById('weatherLat').value = lat.toFixed(6);
+    document.getElementById('weatherLon').value = lon.toFixed(6);
+    const info = document.getElementById('weatherLocationInfo');
+    if(info) info.textContent = 'Đã lấy GPS ±' + Math.round(pos.coords.accuracy || 0) + ' m. Đang tra xã/huyện/tỉnh…';
+    const label = await lookupLocationName(lat, lon);
+    setWeatherLocation(lat, lon, label);
+    if(status) status.textContent = 'Đã lấy vị trí. Đang tải thời tiết tại tọa độ GPS…';
+    loadWeather();
+    if (farmMapInstance) { farmMapInstance.setView([lat,lon], 15); if (farmGpsMarker) farmMapInstance.removeLayer(farmGpsMarker); farmGpsMarker=L.marker([lat,lon]).addTo(farmMapInstance).bindPopup('Vị trí GPS: '+label).openPopup(); }
+  }, function(err){
+    const message = err.code === 1 ? 'Bạn chưa cấp quyền vị trí. Hãy cho phép quyền vị trí trong Android hoặc nhập tọa độ thủ công.' : err.code === 2 ? 'Không xác định được GPS. Hãy bật vị trí và thử ngoài trời.' : 'GPS hết thời gian chờ. Hãy thử lại hoặc nhập tọa độ thủ công.';
+    if(status) status.textContent = message;
+  }, {enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+}
+
+function locateFarmMap(){
+  const saved = getSavedWeatherLocation();
+  if (!navigator.geolocation) {
+    if (saved && farmMapInstance) { farmMapInstance.setView([saved.lat,saved.lon],15); return; }
+    alert('Thiết bị không hỗ trợ GPS. Hãy mở mục Thời tiết và lấy vị trí trước.'); return;
+  }
+  const note = document.getElementById('farmMapNotice');
+  if(note) note.textContent = 'Đang lấy vị trí GPS…';
+  navigator.geolocation.getCurrentPosition(async function(pos){
+    const lat=pos.coords.latitude, lon=pos.coords.longitude;
+    const label=await lookupLocationName(lat,lon);
+    setWeatherLocation(lat,lon,label);
+    const latInput=document.getElementById('weatherLat'), lonInput=document.getElementById('weatherLon');
+    if(latInput) latInput.value=lat.toFixed(6); if(lonInput) lonInput.value=lon.toFixed(6);
+    if(farmMapInstance){ farmMapInstance.setView([lat,lon],16); if(farmGpsMarker) farmMapInstance.removeLayer(farmGpsMarker); farmGpsMarker=L.marker([lat,lon]).addTo(farmMapInstance).bindPopup('Vị trí GPS · '+label).openPopup(); }
+    if(note) note.textContent='GPS ±'+Math.round(pos.coords.accuracy || 0)+' m · '+label+'. Chạm các góc ruộng để đo diện tích.';
+  }, function(){ if(note) note.textContent='Không lấy được GPS. Hãy cấp quyền vị trí hoặc dùng tọa độ ở mục Thời tiết.'; }, {enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+}
 
 function initFarmMap(){
   const element = document.getElementById('farmMap');
@@ -1680,7 +1836,8 @@ function initFarmMap(){
     element.innerHTML = '<p style="padding:12px">Không tải được thư viện bản đồ. Hãy kiểm tra Internet rồi mở lại mục Ruộng lúa.</p>';
     return;
   }
-  farmMapInstance = L.map(element).setView([10.03, 105.78], 13);
+  const savedLocation = getSavedWeatherLocation();
+  farmMapInstance = L.map(element).setView(savedLocation ? [savedLocation.lat, savedLocation.lon] : [16.2, 106.0], savedLocation ? 13 : 5);
   const streetLayer = L.tileLayer(
     'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     {
@@ -1738,7 +1895,14 @@ function initFarmMap(){
     farmMapPoints.push([e.latlng.lat, e.latlng.lng]);
     redrawFarmPolygon();
   });
-  setTimeout(() => farmMapInstance && farmMapInstance.invalidateSize(), 250);
+  const refreshFarmMapSize = () => {
+    if (!farmMapInstance) return;
+    requestAnimationFrame(() => farmMapInstance && farmMapInstance.invalidateSize({animate:false, pan:false}));
+    setTimeout(() => farmMapInstance && farmMapInstance.invalidateSize({animate:false, pan:false}), 350);
+  };
+  setTimeout(refreshFarmMapSize, 250);
+  window.addEventListener('resize', refreshFarmMapSize, {passive:true});
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshFarmMapSize(); });
 }
 function redrawFarmPolygon(){
   if (!farmMapInstance) return;
@@ -1941,6 +2105,13 @@ async function loadWeather(){
   }
 
   status.textContent = 'Đang tải dự báo thời tiết 7 ngày...';
+  const oldLocation = getSavedWeatherLocation();
+  if (!oldLocation || Math.abs(oldLocation.lat-lat) > 0.00001 || Math.abs(oldLocation.lon-lon) > 0.00001) {
+    lookupLocationName(lat, lon).then(label => setWeatherLocation(lat, lon, label));
+  } else {
+    const info = document.getElementById('weatherLocationInfo');
+    if (info) info.textContent = '📍 ' + (oldLocation.label || 'Vị trí đã chọn') + ' · ' + lat.toFixed(5) + ', ' + lon.toFixed(5);
+  }
   currentBox.style.display = 'none';
   forecastBox.style.display = 'none';
 
@@ -1980,14 +2151,19 @@ async function loadWeather(){
     return parts.length === 3 ? parts[2] + '/' + parts[1] : String(date || 'Ngày ' + (index+1));
   };
   const rainAdvice = (chance, amount, code, maxTemp) => {
+    const mm = amount === null || amount === undefined || amount === '' ? null : Number(amount);
     if(code === 95 || code === 96 || code === 99)
       return 'Có nguy cơ dông. Theo dõi cảnh báo địa phương, tránh trú ngoài đồng khi dông đến.';
+    if(mm !== null && Number.isFinite(mm) && mm >= 50)
+      return 'Dự báo mưa rất lớn (từ 50 mm/ngày). Chuẩn bị thoát nước, bảo vệ vật tư và không phơi lúa ngoài trời.';
+    if(mm !== null && Number.isFinite(mm) && mm >= 20)
+      return 'Dự báo mưa lớn (từ 20 mm/ngày). Kiểm tra cống thoát nước và hoãn phơi lúa; theo dõi cập nhật gần giờ mưa.';
     if(chance === null || chance === undefined || !Number.isFinite(Number(chance)))
       return 'Chưa có số liệu xác suất mưa. Hãy kiểm tra lại dự báo trước khi ra đồng hoặc phơi lúa.';
-    if(Number(chance) >= 70 || (Number(chance) >= 50 && Number(amount) >= 5))
+    if(Number(chance) >= 70 || (Number(chance) >= 50 && mm !== null && mm >= 5))
       return 'Khả năng mưa cao. Nên chuẩn bị chỗ che hoặc phương án thu dọn lúa đang phơi; kiểm tra thoát nước ruộng.';
-    if(Number(chance) >= 40)
-      return 'Có thể có mưa. Nên xem lại dự báo trước khi phơi lúa, bón phân hoặc làm việc ngoài đồng.';
+    if(Number(chance) >= 40 || (mm !== null && mm >= 10))
+      return 'Có thể có mưa vừa đến lớn. Xem lại dự báo trước khi phơi lúa, bón phân hoặc làm việc ngoài đồng.';
     if(Number(maxTemp) >= 35)
       return 'Trời có thể rất nóng. Uống đủ nước, nghỉ nơi râm mát và tránh làm việc nặng giữa trưa.';
     if(Number(chance) <= 20 && [0,1].includes(Number(code)))
@@ -2058,8 +2234,9 @@ async function loadWeather(){
       const rawCode = (d.weather_code || [])[i];
       const code = rawCode === null || rawCode === undefined ? -1 : Number(rawCode);
       const advice = rainAdvice(chance, amount, code, maxTemp);
+      const rainMm = amount === null || amount === undefined || amount === '' || !Number.isFinite(Number(amount)) ? null : Number(amount);
       const isAlert = code === 95 || code === 96 || code === 99 ||
-        (chance !== null && chance >= 60);
+        (chance !== null && chance >= 60) || (rainMm !== null && rainMm >= 20);
       if(isAlert) alerts.push(dayLabel(d.time[i],i) + ': ' + advice);
 
       cards +=
@@ -2073,7 +2250,8 @@ async function loadWeather(){
         ' °C · Cao nhất ' + fmt(maxTemp) + ' °C</p>' +
         '<p style="font-size:1.1rem;margin:6px 0">🌧️ Khả năng mưa: <b>' +
         (chance === null ? 'Chưa có dữ liệu' : fmt(chance) + '%') + '</b></p>' +
-        '<p style="font-size:1.05rem;margin:6px 0">💧 Lượng mưa dự kiến: ' + fmt(amount) + ' mm/ngày</p>' +
+        '<p style="font-size:1.05rem;margin:6px 0">💧 Lượng mưa dự kiến: <b>' + fmt(amount) + ' mm/ngày</b></p>' +
+        (rainMm !== null && rainMm >= 50 ? '<p><b>🚨 Nguy cơ mưa rất lớn</b></p>' : rainMm !== null && rainMm >= 20 ? '<p><b>⚠️ Nguy cơ mưa lớn</b></p>' : chance !== null && chance >= 60 ? '<p><b>⚠️ Khả năng mưa cao</b></p>' : '') +
         '<p style="font-size:1.05rem;margin:8px 0"><b>🌾 Bà con nên làm:</b> ' +
         escWeather(advice) + '</p></article>';
     }

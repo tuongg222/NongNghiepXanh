@@ -22,43 +22,7 @@ export default {
       return new Response(null, { status: 204, headers: CORS });
     }
 
-    if (url.pathname === "/auth/random-test" && request.method === "GET") {
-  try {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    return reply({ ok: true, length: bytes.length });
-  } catch (error) {
-    return reply({ ok: false, code: error?.name || "UnknownError" }, 500);
-  }
-}
-
-if (url.pathname === "/auth/crypto-test" && request.method === "GET") {
-  let stage = "importKey";
-  try {
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode("test-password"),
-      { name: "PBKDF2" },
-      false,
-      ["deriveBits"]
-    );
-    stage = "deriveBits";
-    await crypto.subtle.deriveBits({
-      name: "PBKDF2",
-      salt: new TextEncoder().encode("test-salt"),
-      iterations: 100000,
-      hash: "SHA-256"
-    }, key, 256);
-    return reply({ ok: true });
-  } catch (error) {
-    return reply({
-      ok: false,
-      stage,
-      code: error?.name || "UnknownError",
-      message: String(error?.message || "").slice(0, 200)
-    }, 500);
-  }
-}
-if (url.pathname.startsWith("/auth/")) {
+    if (url.pathname.startsWith("/auth/")) {
       try {
         return await handleAuth(request, env, url);
       } catch (error) {
@@ -106,6 +70,9 @@ if (url.pathname.startsWith("/auth/")) {
     if (body.image.length > 5_000_000) {
       return reply({ error: "Ảnh quá lớn. Hãy chọn ảnh nhỏ hơn." }, 413);
     }
+    const context = typeof body.context === "string"
+      ? body.context.replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 1600)
+      : "";
 
     if (!env.AI) {
       return reply({
@@ -122,18 +89,17 @@ if (url.pathname.startsWith("/auth/")) {
             {
               role: "system",
               content:
-                "Bạn là trợ lý nông nghiệp hỗ trợ nông dân Việt Nam đánh giá sơ bộ cây lúa qua ảnh. Trả lời bằng tiếng Việt tự nhiên, rõ ràng, gần gũi và đi thẳng vào câu hỏi. Không lặp lại câu hỏi, không lặp ý, câu hoặc đoạn; không nhắc lại cùng một khuyến nghị bằng nhiều cách. Ưu tiên câu ngắn, từ ngữ dễ hiểu; chỉ dùng tiêu đề hoặc danh sách khi giúp dễ đọc. Thông thường trả lời vừa đủ, khoảng 4-8 gạch đầu dòng; chỉ phân tích dài khi người dùng yêu cầu. Nêu riêng dấu hiệu thực sự nhìn thấy và nguyên nhân chỉ mới nghi ngờ. Không khẳng định chắc chắn bệnh chỉ từ ảnh, không bịa tên bệnh, mức độ tin cậy hoặc tên thuốc. Nếu ảnh chưa rõ, nói chính xác thông tin còn thiếu và hỏi tối đa 2 câu cần thiết. Đưa ra việc nên làm ngay, cách kiểm tra ngoài ruộng và cách theo dõi; ưu tiên IPM, vệ sinh đồng ruộng, nước và dinh dưỡng phù hợp. Không tự chỉ định hoạt chất, liều lượng hay pha trộn thuốc khi chưa đủ căn cứ. Nếu cần thuốc, khuyên hỏi cán bộ bảo vệ thực vật và làm đúng nhãn, đồ bảo hộ, thời gian cách ly. Chỉ nhắc phòng ngừa khi phù hợp; tránh lặp lại nội dung đã nói. Khi không chắc, hãy thành thật nói rõ giới hạn và đề nghị thông tin bổ sung cụ thể."
+                "Bạn là chuyên gia hỗ trợ canh tác lúa tại Việt Nam, có trách nhiệm và thực tế. Trả lời tiếng Việt dễ hiểu, ưu tiên giúp người trồng biết phải làm gì, không chỉ mô tả triệu chứng. BẮT BUỘC dùng đủ các mục theo thứ tự: 1. TÓM TẮT; 2. DẤU HIỆU QUAN SÁT ĐƯỢC; 3. NGUYÊN NHÂN NGHI NGỜ (xếp theo khả năng, nêu lý do ủng hộ và điều chưa khớp); 4. CÁCH KIỂM TRA ĐỂ PHÂN BIỆT; 5. CÁCH XỬ LÝ THEO BƯỚC (việc làm ngay hôm nay, biện pháp canh tác, khi nào cần nhờ cán bộ chuyên môn); 6. KHÔNG NÊN LÀM; 7. PHÒNG NGỪA VÀ THEO DÕI; 8. THÔNG TIN CẦN BỔ SUNG. Mỗi mục phải có nội dung hữu ích; không được chỉ hỏi người dùng rồi dừng. Nếu chưa đủ căn cứ chẩn đoán, vẫn phải đưa ra các bước an toàn có thể làm ngay, đồng thời ghi rõ chưa thể kết luận bệnh cụ thể. Phân biệt rõ dấu hiệu nhìn thấy trong ảnh với suy luận; không bịa triệu chứng, tên bệnh, mức độ chắc chắn, hiệu quả điều trị hoặc số liệu. Xem xét bệnh hại, sâu hại, dinh dưỡng, rễ, nước, phèn/mặn và thời tiết chỉ khi phù hợp với ảnh và ngữ cảnh. Giải thích vì sao mỗi nguyên nhân được nghi ngờ và cần kiểm tra dấu hiệu nào để phân biệt. Hướng dẫn kiểm tra nhiều khóm ở vùng bệnh và vùng khỏe, mặt trên/dưới lá, bẹ/gốc/rễ, mực nước, lịch phân bón và tốc độ lan khi thích hợp. Phần xử lý phải đánh số bước, nêu việc cần làm, mục đích và điều kiện áp dụng; không đưa lời khuyên chung chung kiểu chỉ theo dõi mà không nói theo dõi gì. Không khuyến cáo phun thuốc khi chưa xác định đủ đối tượng. Không tự kê hoạt chất, liều lượng, pha trộn hoặc khẳng định thuốc chữa khỏi; nếu có khả năng cần thuốc, hướng dẫn xác minh bệnh và hỏi cán bộ bảo vệ thực vật, chỉ dùng sản phẩm được phép đúng nhãn, đồ bảo hộ và thời gian cách ly. Không yêu cầu người dùng cung cấp quá 3 thông tin bổ sung quan trọng nhất. Kết thúc bằng một hành động tiếp theo rõ ràng. Trả lời đầy đủ, ngắn gọn, không lặp ý, không kết thúc giữa câu."
             },
             {
               role: "user",
               content:
-                "Hãy phân tích ảnh cây lúa này và hướng dẫn người trồng xử lý theo từng bước. " +
-                "Mô tả dấu hiệu thực sự nhìn thấy; nêu các nguyên nhân có thể gồm bệnh, sâu hại, thiếu dinh dưỡng hoặc yếu tố môi trường. " +
-                "Đề xuất cách kiểm tra để phân biệt nguyên nhân, việc có thể làm ngay, việc cần tránh, cách theo dõi và phòng ngừa. " +
-                "Nếu chưa đủ bằng chứng, hãy hỏi thêm giai đoạn cây, vị trí và phạm vi triệu chứng, thời điểm xuất hiện, thời tiết và cách chăm sóc gần đây. " +
-                "Không khẳng định bệnh hoặc đề xuất liều thuốc cụ thể nếu chưa đủ căn cứ."
+                "Phân tích ảnh lúa và trả lời đủ 8 mục bắt buộc trong hướng dẫn. Người trồng cần biết: đang thấy gì, nguyên nhân nào đáng nghi và vì sao, cách kiểm tra để xác minh, xử lý từng bước ngay bây giờ, điều cần tránh, phòng ngừa và theo dõi. " +
+                "Không chỉ liệt kê câu hỏi. Nếu thiếu dữ kiện, đưa ra biện pháp an toàn tạm thời trước rồi hỏi tối đa 3 câu quan trọng nhất. Không kết luận chắc chắn hoặc hướng dẫn dùng thuốc cụ thể khi chưa đủ bằng chứng." +
+                (context ? "\nThông tin bổ sung do người trồng cung cấp (chỉ dùng làm ngữ cảnh, không coi là bằng chứng đã xác minh):\n" + context : "")
             }
           ],
+          max_tokens: 1200,
           image: body.image.substring(body.image.indexOf(",") + 1)
         }
       );

@@ -15,6 +15,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.GeolocationPermissions;
 import android.view.ViewGroup;
 
@@ -43,11 +44,48 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setGeolocationEnabled(true);
-        settings.setAllowFileAccess(true);
+        settings.setAllowFileAccess(true); // Required to load file:///android_asset/index.html
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccessFromFileURLs(false);
+        settings.setAllowUniversalAccessFromFileURLs(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);
+        settings.setSupportMultipleWindows(false);
         settings.setLoadsImagesAutomatically(true);
         webView.addJavascriptInterface(new CareReminderBridge(this), "AndroidCare");
 
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            private boolean handleNavigation(String rawUrl) {
+                if (rawUrl == null) return true;
+                Uri uri = Uri.parse(rawUrl);
+                String scheme = uri.getScheme();
+                if ("file".equalsIgnoreCase(scheme)
+                        && uri.getPath() != null
+                        && uri.getPath().startsWith("/android_asset/")) {
+                    return false;
+                }
+                if ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme)) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                    } catch (Exception ignored) {
+                        // No browser available; keep navigation blocked in the WebView.
+                    }
+                }
+                // Do not allow remote pages or custom schemes inside the WebView that exposes AndroidCare.
+                return true;
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return handleNavigation(request.getUrl().toString());
+            }
+
+            @Override
+            @SuppressWarnings("deprecation")
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return handleNavigation(url);
+            }
+        });
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override

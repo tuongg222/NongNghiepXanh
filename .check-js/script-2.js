@@ -1,0 +1,1409 @@
+
+
+const bizDefaults = {
+  bizMarket:100000, bizUsers1:500, bizUsers2:3000,
+  bizConversion:10, bizPrice:29000, bizSetup:20000000,
+  bizCost1:5000000, bizCost2:20000000
+};
+const bizIds = Object.keys(bizDefaults);
+function bizNum(id) {
+  const el = document.getElementById(id);
+  const n = el ? Number(el.value) : 0;
+  return Number.isFinite(n) ? Math.max(0,n) : 0;
+}
+function bizMoney(n) {
+  return Math.round(n).toLocaleString('vi-VN') + ' đ';
+}
+function saveBusinessPlan() {
+  const data = {};
+  bizIds.forEach(id => data[id] = bizNum(id));
+  try {
+    localStorage.setItem('nx_business_plan',JSON.stringify(data));
+    alert('Đã lưu giả định trên thiết bị này.');
+  } catch(e) {
+    alert('Không lưu được dữ liệu. Hãy kiểm tra bộ nhớ thiết bị.');
+  }
+  calculateBusiness();
+}
+function resetBusinessPlan() {
+  bizIds.forEach(id => document.getElementById(id).value = bizDefaults[id]);
+  try { localStorage.removeItem('nx_business_plan'); } catch(e) {}
+  calculateBusiness();
+}
+function loadBusinessPlan() {
+  try {
+    const data = JSON.parse(localStorage.getItem('nx_business_plan') || 'null');
+    if (data) bizIds.forEach(id => {
+      if (data[id] !== undefined && Number.isFinite(Number(data[id])))
+        document.getElementById(id).value = Math.max(0,Number(data[id]));
+    });
+  } catch(e) {}
+}
+function calculateBusiness() {
+  const el = id => document.getElementById(id);
+  if (!el('bizResults')) return;
+  const market = bizNum('bizMarket');
+  const u1 = bizNum('bizUsers1'), u2 = bizNum('bizUsers2');
+  const rate = Math.min(100,bizNum('bizConversion'))/100;
+  const price = bizNum('bizPrice'), setup = bizNum('bizSetup');
+  const c1 = bizNum('bizCost1'), c2 = bizNum('bizCost2');
+  const paid1 = Math.floor(u1*rate), paid2 = Math.floor(u2*rate);
+  const r1 = paid1*price, r2 = paid2*price;
+  const p1 = r1-c1, p2 = r2-c2;
+  const total1 = p1*6-setup, total2 = p2*12;
+  el('bizSummary1').textContent = u1.toLocaleString('vi-VN')+' người dùng; '+paid1.toLocaleString('vi-VN')+' trả phí';
+  el('bizSummary2').textContent = u2.toLocaleString('vi-VN')+' người dùng; '+paid2.toLocaleString('vi-VN')+' trả phí';
+  el('bizResults').innerHTML =
+    '<b>Giai đoạn 1 — 6 tháng</b><br>Doanh thu/tháng: '+bizMoney(r1)+
+    '<br>Lãi/lỗ vận hành/tháng: '+bizMoney(p1)+
+    '<br>Lãi/lỗ 6 tháng sau chi phí khởi tạo: <b>'+bizMoney(total1)+'</b><hr>'+
+    '<b>Giai đoạn 2 — 12 tháng tiếp theo</b><br>Doanh thu/tháng: '+bizMoney(r2)+
+    '<br>Lãi/lỗ vận hành/tháng: '+bizMoney(p2)+
+    '<br>Lãi/lỗ 12 tháng: <b>'+bizMoney(total2)+'</b><hr>'+
+    'Tỷ lệ tiếp cận thị trường mục tiêu: '+
+    (market ? (u2/market*100).toLocaleString('vi-VN',{maximumFractionDigits:2})+'%' : 'Chưa xác định');
+  function bar(name,rev,cost) {
+    const max = Math.max(rev,cost,1);
+    return '<div style="margin:12px 0"><b>'+name+'</b>'+
+      '<p>Doanh thu: '+bizMoney(rev)+'</p>'+
+      '<div style="height:12px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:12px;width:'+Math.min(100,rev/max*100)+'%;background:#16a34a"></div></div>'+
+      '<p>Chi phí: '+bizMoney(cost)+'</p>'+
+      '<div style="height:12px;background:#e5e7eb;border-radius:8px;overflow:hidden"><div style="height:12px;width:'+Math.min(100,cost/max*100)+'%;background:#ea580c"></div></div></div>';
+  }
+  el('bizBars').innerHTML = bar('Giai đoạn 1',r1,c1)+bar('Giai đoạn 2',r2,c2);
+  const perUser = price*rate;
+  el('bizBreakEven').textContent = perUser>0 ?
+    'Cần khoảng '+Math.ceil(c2/perUser).toLocaleString('vi-VN')+
+    ' người dùng tổng cộng để bù chi phí vận hành tháng giai đoạn 2, theo tỷ lệ trả phí hiện tại; chưa tính chi phí khởi tạo.' :
+    'Chưa tính được: giá thuê bao và tỷ lệ trả phí phải lớn hơn 0.';
+  const scenarios = [
+    {name:'Thận trọng',f:0.5,c:1.2},
+    {name:'Cơ sở',f:1,c:1},
+    {name:'Tăng trưởng cao',f:2,c:1.5}
+  ];
+  el('bizScenarios').innerHTML = scenarios.map(sc=>{
+    const users=Math.floor(u2*sc.f), paid=Math.floor(users*rate);
+    const rev=paid*price, cost=c2*sc.c;
+    return '<div style="padding:10px 0;border-bottom:1px solid #ddd"><b>'+sc.name+
+      '</b><br>Người dùng: '+users.toLocaleString('vi-VN')+
+      '<br>Người trả phí: '+paid.toLocaleString('vi-VN')+
+      '<br>Doanh thu/tháng: '+bizMoney(rev)+
+      '<br>Chi phí/tháng: '+bizMoney(cost)+
+      '<br>Lãi/lỗ/tháng: <b>'+bizMoney(rev-cost)+'</b></div>';
+  }).join('');
+}
+
+function showPage(id,btn){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+ if (btn) btn.classList.add('active');
+ if (id === 'farm') setTimeout(initFarmMap, 150);
+}
+function getFarms(){
+ try {
+  const saved = JSON.parse(localStorage.getItem('nx_farms') || 'null');
+  if (Array.isArray(saved)) return saved;
+  const old = JSON.parse(localStorage.getItem('nx_farm') || 'null');
+  if (old && typeof old === 'object') {
+   const migrated = [{...old, id: Date.now()}];
+   localStorage.setItem('nx_farms', JSON.stringify(migrated));
+   return migrated;
+  }
+  return [];
+ } catch (error) {
+  alert('Không đọc được dữ liệu ruộng. Dữ liệu cũ vẫn được giữ nguyên.');
+  return [];
+ }
+}
+let editingFarmId = null;
+
+function saveFarm(){
+ const data = {
+  name: fieldName.value.trim(),
+  variety: variety.value.trim(),
+  area: area.value,
+   sowDate: sowDate.value,
+   stage: document.getElementById('farmStage').value,
+   harvestDate: document.getElementById('harvestDate').value
+  };
+ if (!data.name) {
+  alert('Bạn hãy nhập tên ruộng nhé.');
+  fieldName.focus();
+  return;
+ }
+ if (data.area !== '' && (!Number.isFinite(Number(data.area)) || Number(data.area) <= 0)) {
+  alert('Diện tích phải lớn hơn 0.');
+  area.focus();
+  return;
+ }
+ const farms = getFarms();
+ if (editingFarmId !== null) {
+  const index = farms.findIndex(f => f.id === editingFarmId);
+  if (index < 0) {
+   alert('Không tìm thấy ruộng cần sửa. Vui lòng tải lại danh sách.');
+   return;
+  }
+  farms[index] = {...farms[index], ...data};
+ } else {
+  data.id = Date.now();
+  farms.push(data);
+ }
+ try {
+  localStorage.setItem('nx_farms', JSON.stringify(farms));
+ } catch (error) {
+  alert('Không lưu được. Bộ nhớ có thể đã đầy.');
+  return;
+ }
+ editingFarmId = null;
+ fieldName.value = '';
+ variety.value = '';
+ area.value = '';
+ sowDate.value = '';
+ document.getElementById('farmStage').value = 'Chuẩn bị đất';
+ document.getElementById('harvestDate').value = '';
+ farmResult.style.display = 'block';
+ farmResult.textContent = 'Đã lưu thông tin ruộng!';
+ const saveButton = document.querySelector('#farm button');
+ if (saveButton) saveButton.textContent = 'Lưu thông tin ruộng';
+ renderFarms();
+}
+
+function renderFarms(){
+ const list = document.getElementById('farmList');
+ if (!list) return;
+ const farms = getFarms();
+ if (!farms.length) {
+  list.textContent = 'Chưa có ruộng nào. Hãy nhập thông tin ở phía trên.';
+  return;
+ }
+ list.innerHTML = farms.map(f =>
+  '<div style="padding:12px 0;border-bottom:1px solid #eee">' +
+  '<b>🌾 ' + esc(f.name || 'Chưa đặt tên') + '</b><br>' +
+  '<small>Giống: ' + esc(f.variety || 'Chưa nhập') +
+  ' · Diện tích: ' + esc(f.area || '0') + ' ha</small><br>' +
+  '<small>Ngày sạ: ' + esc(f.sowDate || 'Chưa nhập') + ' · Giai đoạn: ' + esc(f.stage || 'Chưa cập nhật') + '</small><br>' +
+  '<small>Thu hoạch dự kiến: ' + esc(f.harvestDate || 'Chưa nhập') + '</small><br>' +
+  '<button style="width:auto;padding:8px 12px" onclick="editFarm(' + Number(f.id) + ')">Sửa</button> ' +
+  '<button style="width:auto;padding:8px 12px;background:#b83232" onclick="deleteFarm(' + Number(f.id) + ')">Xóa</button>' +
+  '</div>'
+ ).join('');
+}
+
+function editFarm(id){
+ const farm = getFarms().find(f => f.id === id);
+ if (!farm) {
+  alert('Không tìm thấy ruộng.');
+  return;
+ }
+ editingFarmId = id;
+ fieldName.value = farm.name || '';
+ variety.value = farm.variety || '';
+ area.value = farm.area || '';
+ sowDate.value = farm.sowDate || '';
+ document.getElementById('farmStage').value = farm.stage || 'Chuẩn bị đất';
+ document.getElementById('harvestDate').value = farm.harvestDate || '';
+ const saveButton = document.querySelector('#farm button');
+ if (saveButton) saveButton.textContent = 'Lưu thay đổi';
+ document.getElementById('farmResult').style.display = 'block';
+ document.getElementById('farmResult').textContent = 'Đang sửa: ' + farm.name;
+ document.getElementById('farm').scrollIntoView({behavior:'smooth'});
+}
+
+function deleteFarm(id){
+ const farms = getFarms();
+ const farm = farms.find(f => f.id === id);
+ if (!farm) return;
+ if (!confirm('Bạn có chắc muốn xóa ruộng "' + farm.name + '" không?')) return;
+ const updated = farms.filter(f => f.id !== id);
+ try {
+  localStorage.setItem('nx_farms', JSON.stringify(updated));
+ } catch (error) {
+  alert('Không thể cập nhật danh sách ruộng.');
+  return;
+ }
+ if (editingFarmId === id) {
+  editingFarmId = null;
+  fieldName.value = '';
+  variety.value = '';
+  area.value = '';
+  sowDate.value = '';
+  document.getElementById('farmStage').value = 'Chuẩn bị đất';
+  document.getElementById('harvestDate').value = '';
+  const saveButton = document.querySelector('#farm button');
+  if (saveButton) saveButton.textContent = 'Lưu thông tin ruộng';
+ }
+ renderFarms();
+}
+
+function loadFarm(){
+ const farms = getFarms();
+ if (farms.length) {
+  const d = farms[0];
+  fieldName.value = d.name || '';
+  variety.value = d.variety || '';
+  area.value = d.area || '';
+  sowDate.value = d.sowDate || '';
+  document.getElementById('farmStage').value = d.stage || 'Chuẩn bị đất';
+  document.getElementById('harvestDate').value = d.harvestDate || '';
+ }
+ renderFarms();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function getTasks(){
+ try {
+  const tasks = JSON.parse(localStorage.getItem('nx_tasks') || '[]');
+  if (!Array.isArray(tasks)) return [];
+  let changed = false;
+  tasks.forEach((task, i) => {
+   if (!task.id) {
+    task.id = 'care_' + Date.now() + '_' + i;
+    changed = true;
+   }
+  });
+  if (changed) localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+  return tasks;
+ } catch (error) {
+  return [];
+ }
+}
+
+function syncCareReminder(task){
+ if (!task || !task.id || !task.date || task.done) return;
+ if (window.AndroidCare && typeof window.AndroidCare.scheduleReminder === 'function'){
+  window.AndroidCare.scheduleReminder(String(task.id), String(task.name || 'Chăm sóc ruộng lúa'), String(task.date), String(task.time || '09:00'));
+ }
+}
+
+function cancelCareReminder(task){
+ if (!task || !task.id) return;
+ if (window.AndroidCare && typeof window.AndroidCare.cancelReminder === 'function'){
+  window.AndroidCare.cancelReminder(String(task.id));
+ }
+}
+
+function syncAllCareReminders(){
+ getTasks().forEach(task => {
+  if (task.done) cancelCareReminder(task);
+  else syncCareReminder(task);
+ });
+}
+
+function renderTaskFarmOptions(){
+ const select = document.getElementById('taskFarm');
+ if (!select) return;
+ const previous = select.value;
+ const farms = getFarms();
+ select.innerHTML = '<option value="">Tất cả ruộng / chưa chọn</option>' +
+  farms.map(f => '<option value="' + Number(f.id) + '">' +
+   esc(f.name || 'Ruộng chưa đặt tên') + '</option>').join('');
+ if ([...select.options].some(o => o.value === previous)) {
+  select.value = previous;
+ }
+}
+
+function addTask(){
+ const name = document.getElementById('taskName').value.trim();
+ const date = document.getElementById('taskDate').value;
+ const type = document.getElementById('taskType').value;
+ const farmValue = document.getElementById('taskFarm').value;
+ if (!name || !date) {
+  alert('Bạn hãy nhập nội dung công việc và ngày thực hiện.');
+  return;
+ }
+ const tasks = getTasks();
+ const time = document.getElementById('taskTime').value || '09:00';
+  const task = {id:'care_' + Date.now() + '_' + Math.random().toString(36).slice(2), name:name, date:date, time:time, done:false, type:type};
+ if (farmValue !== '') {
+  task.farmId = Number(farmValue);
+  const farm = getFarms().find(f => f.id === task.farmId);
+  task.farmName = farm ? farm.name : '';
+ }
+ tasks.push(task);
+ try {
+  localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+ } catch (error) {
+  alert('Không lưu được lịch. Bộ nhớ có thể đã đầy.');
+  return;
+ }
+ syncCareReminder(task);
+ document.getElementById('taskName').value = '';
+ renderTasks();
+}
+
+function renderTasks(){
+ const tasks = getTasks();
+ const list = document.getElementById('taskList');
+ if (!list) return;
+
+ if (!tasks.length) {
+  list.textContent = 'Chưa có công việc nào.';
+  return;
+ }
+
+ const today = new Date();
+ const todayText = [
+  today.getFullYear(),
+  String(today.getMonth()+1).padStart(2,'0'),
+  String(today.getDate()).padStart(2,'0')
+ ].join('-');
+
+ const ordered = tasks.map((task, index) => ({task, index}));
+ ordered.sort((a,b) => {
+  if (a.task.done !== b.task.done) return a.task.done ? 1 : -1;
+  return String(a.task.date || '9999-99-99')
+   .localeCompare(String(b.task.date || '9999-99-99'));
+ });
+
+ list.innerHTML = ordered.map(({task:t,index:i}) => {
+  let status = '📅 Sắp tới';
+  let color = '#16803c';
+
+  if (t.done) {
+   status = '✅ Đã hoàn thành';
+   color = '#16803c';
+  } else if (!t.date) {
+   status = '⚪ Chưa có ngày';
+   color = '#666';
+  } else if (t.date < todayText) {
+   status = '🔴 Quá hạn';
+   color = '#c62828';
+  } else if (t.date === todayText) {
+   status = '🟠 Hôm nay';
+   color = '#c77700';
+  }
+
+  return '<div style="padding:12px 0;border-bottom:1px solid #eee">' +
+   '<div style="color:' + color + ';font-weight:bold;margin-bottom:5px">' +
+   status + '</div>' +
+   '<label style="margin:0"><input style="width:auto" type="checkbox" ' +
+   (t.done ? 'checked' : '') +
+   ' onchange="toggleTask(' + i + ',this.checked)"> ' +
+   (t.done ? '<s>' : '') + esc(t.name || 'Công việc chưa đặt tên') +
+   (t.done ? '</s>' : '') + '</label><br>' +
+   '<small>📅 ' + esc(t.date || 'Chưa có ngày') +
+   ' lúc ' + esc(t.time || '09:00') + ' · ' + esc(t.type || 'Công việc cũ') +
+   ' · 🌾 ' + esc(t.farmName || 'Chưa gắn ruộng') +
+   '</small><br>' +
+   '<button style="width:auto;padding:6px 10px;margin:5px 0;background:#b83232" ' +
+   'onclick="deleteTask(' + i + ')">Xóa</button></div>';
+ }).join('');
+}
+function toggleTask(i, value){
+ const tasks = getTasks();
+ if (!tasks[i]) return;
+ tasks[i].done = value;
+ localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+ if (value) cancelCareReminder(tasks[i]);
+ else syncCareReminder(tasks[i]);
+ renderTasks();
+}
+
+function deleteTask(i){
+ if (!confirm('Bạn có chắc muốn xóa công việc này không?')) return;
+ const tasks = getTasks();
+ if (!tasks[i]) return;
+ cancelCareReminder(tasks[i]);
+ tasks.splice(i, 1);
+ localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+ renderTasks();
+}
+function calculate(){
+ const w=Number(weight.value),p=Number(price.value),c=Number(cost.value||0);
+ if(weight.value===''||price.value===''||w<0||p<0||c<0){alert('Vui lòng nhập số liệu hợp lệ.');return;}
+ const revenue=w*p,profit=revenue-c;
+ calcResult.style.display='block';
+ calcResult.innerHTML='Khối lượng: <b>'+w.toLocaleString('vi-VN')+' kg</b><br>Tiền bán: <b>'+revenue.toLocaleString('vi-VN')+' đ</b><br>Chi phí: <b>'+c.toLocaleString('vi-VN')+' đ</b><hr>Lãi/lỗ tạm tính: <b>'+profit.toLocaleString('vi-VN')+' đ</b>';
+}
+
+const diseasePhoto = document.getElementById('diseasePhoto');
+const photoPreview = document.getElementById('photoPreview');
+const diseaseStatus = document.getElementById('diseaseStatus');
+const diseaseFarm = document.getElementById('diseaseFarm');
+const diseaseHistoryFarm = document.getElementById('diseaseHistoryFarm');
+const diseaseHistory = document.getElementById('diseaseHistory');
+
+let selectedDiseaseImage = null;
+
+function renderDiseaseFarmOptions() {
+  const farms = getFarms();
+  const currentFarm = diseaseFarm.value;
+  const currentFilter = diseaseHistoryFarm.value;
+
+  diseaseFarm.replaceChildren();
+  const noFarm = document.createElement('option');
+  noFarm.value = '';
+  noFarm.textContent = 'Chưa gắn ruộng';
+  diseaseFarm.appendChild(noFarm);
+
+  diseaseHistoryFarm.replaceChildren();
+  const allFarms = document.createElement('option');
+  allFarms.value = '';
+  allFarms.textContent = 'Tất cả ruộng';
+  diseaseHistoryFarm.appendChild(allFarms);
+
+  farms.forEach(farm => {
+    const id = String(farm.id);
+    const name = farm.name || 'Ruộng chưa đặt tên';
+
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = name;
+    diseaseFarm.appendChild(option);
+
+    const filterOption = document.createElement('option');
+    filterOption.value = id;
+    filterOption.textContent = name;
+    diseaseHistoryFarm.appendChild(filterOption);
+  });
+
+  if ([...diseaseFarm.options].some(o => o.value === currentFarm)) {
+    diseaseFarm.value = currentFarm;
+  }
+  if ([...diseaseHistoryFarm.options].some(o => o.value === currentFilter)) {
+    diseaseHistoryFarm.value = currentFilter;
+  }
+}
+
+diseasePhoto.addEventListener('change', function () {
+  const file = this.files && this.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    alert('Bạn hãy chọn một file ảnh.');
+    this.value = '';
+    return;
+  }
+
+  if (file.size > 8 * 1024 * 1024) {
+    alert('Ảnh quá lớn. Bạn hãy chọn ảnh nhỏ hơn 8 MB.');
+    this.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function (event) {
+    selectedDiseaseImage = {
+      name: file.name,
+      type: file.type,
+      data: event.target.result,
+      date: new Date().toISOString(),
+      status: 'waiting'
+    };
+
+    photoPreview.replaceChildren();
+    const img = document.createElement('img');
+    img.src = selectedDiseaseImage.data;
+    img.alt = 'Ảnh cây lúa cần kiểm tra';
+    img.style.width = '100%';
+    img.style.maxHeight = '300px';
+    img.style.objectFit = 'contain';
+    img.style.borderRadius = '12px';
+    photoPreview.appendChild(img);
+
+    diseaseStatus.style.display = 'block';
+    diseaseStatus.textContent = 'Đã chọn ảnh. Nhấn nút lưu để lưu vào lịch sử.';
+  };
+  reader.readAsDataURL(file);
+});
+
+
+async function compressDiseaseImage(dataUrl) {
+  const img = new Image();
+  img.src = dataUrl;
+
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = () => reject(new Error("Không đọc được ảnh."));
+  });
+
+  const scale = Math.min(
+    1,
+    1280 / Math.max(img.naturalWidth, img.naturalHeight)
+  );
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Không xử lý được ảnh trên thiết bị.");
+
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  let quality = 0.82;
+  let result = canvas.toDataURL("image/jpeg", quality);
+
+  while (result.length > 4700000 && quality > 0.42) {
+    quality -= 0.1;
+    result = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  if (result.length > 4700000) {
+    throw new Error("Ảnh vẫn quá lớn. Hãy chọn ảnh khác.");
+  }
+
+  return result;
+}
+
+async function saveDiseasePhoto() {
+  if (!selectedDiseaseImage) {
+    alert("Bạn hãy chụp hoặc chọn ảnh trước nhé.");
+    return;
+  }
+
+  const button = document.querySelector(
+    '#disease button[onclick="saveDiseasePhoto()"]'
+  );
+  if (button) {
+    button.disabled = true;
+    button.textContent = "⏳ Đang phân tích ảnh...";
+  }
+
+  diseaseStatus.style.display = "block";
+  diseaseStatus.textContent = "Đang tối ưu ảnh và gửi đến AI. Vui lòng chờ...";
+
+  try {
+    const original = selectedDiseaseImage;
+    const imageData = await compressDiseaseImage(original.data);
+
+    const farmId = diseaseFarm.value;
+    const farm = getFarms().find(f => String(f.id) === farmId);
+
+    const photo = {
+      name: original.name,
+      type: "image/jpeg",
+      data: imageData,
+      date: new Date().toISOString(),
+      farmId: farm ? farm.id : "",
+      farmName: farm
+        ? (farm.name || "Ruộng chưa đặt tên")
+        : "Chưa gắn ruộng",
+      status: "error",
+      result: "",
+      error: ""
+    };
+
+    try {
+      const response = await fetch(
+        "https://nongnghiep-xanh-ai.nguyenduytuong093.workers.dev/diagnose",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: imageData })
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.ok || !data.result) {
+        throw new Error(
+          data.error || ("Máy chủ trả về HTTP " + response.status)
+        );
+      }
+
+      photo.status = "done";
+      photo.result = typeof data.result === "string"
+        ? data.result
+        : JSON.stringify(data.result, null, 2);
+    } catch (error) {
+      photo.error = error.message || "Không gọi được AI.";
+    }
+
+    const saved = JSON.parse(
+      localStorage.getItem("nx_disease_photos") || "[]"
+    );
+    if (!Array.isArray(saved)) {
+      throw new Error("Dữ liệu lịch sử ảnh không hợp lệ.");
+    }
+
+    saved.push(photo);
+    localStorage.setItem("nx_disease_photos", JSON.stringify(saved));
+
+    selectedDiseaseImage = null;
+    diseasePhoto.value = "";
+    photoPreview.replaceChildren();
+
+    diseaseStatus.textContent = photo.status === "done"
+      ? "✅ AI đã phân tích ảnh. Xem kết quả trong lịch sử bên dưới."
+      : "Ảnh đã lưu, nhưng AI chưa phân tích được: " + photo.error;
+
+    loadDiseasePhotos();
+  } catch (error) {
+    diseaseStatus.textContent =
+      "Không hoàn tất được: " + (error.message || "Lỗi không xác định.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "💾 Lưu ảnh và phân tích AI";
+    }
+  }
+}
+
+function loadDiseasePhotos() {
+  renderDiseaseFarmOptions();
+
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("nx_disease_photos") || "[]"
+    );
+    const photos = Array.isArray(saved) ? saved : [];
+
+    diseaseStatus.style.display = "block";
+    diseaseStatus.textContent = photos.length
+      ? "Đã lưu " + photos.length + " ảnh trên thiết bị."
+      : "Chưa có ảnh nào được lưu.";
+
+    diseaseHistory.replaceChildren();
+
+    const filterId = diseaseHistoryFarm.value;
+    const filtered = photos.filter(photo =>
+      !filterId || String(photo.farmId || "") === filterId
+    );
+
+    if (!filtered.length) {
+      diseaseHistory.textContent = "Chưa có ảnh trong mục này.";
+      return;
+    }
+
+    filtered.slice().reverse().forEach(photo => {
+      const card = document.createElement("div");
+      card.style.cssText = "padding:12px 0;border-bottom:1px solid #ddd";
+
+      if (photo.data) {
+        const img = document.createElement("img");
+        img.src = photo.data;
+        img.alt = "Ảnh đã lưu: " + (photo.name || "ảnh cây lúa");
+        img.style.cssText =
+          "width:100%;max-height:220px;object-fit:contain;border-radius:10px";
+        card.appendChild(img);
+      }
+
+      const info = document.createElement("p");
+      const date = photo.date ? new Date(photo.date) : null;
+      const dateText = date && !Number.isNaN(date.getTime())
+        ? date.toLocaleString("vi-VN")
+        : "Không rõ ngày lưu";
+
+      info.textContent =
+        (photo.name || "Ảnh cây lúa") + " · " + dateText +
+        " · Ruộng: " + (photo.farmName || "Chưa gắn ruộng");
+      card.appendChild(info);
+
+      const status = document.createElement("b");
+      status.textContent = photo.status === "done"
+        ? "✅ Đã phân tích bằng AI"
+        : photo.error
+          ? "⚠️ Chưa phân tích được: " + photo.error
+          : "⏳ Chưa có kết quả phân tích";
+      card.appendChild(status);
+
+      if (photo.result) {
+        const heading = document.createElement("h4");
+        heading.textContent = "🤖 Kết quả AI";
+        card.appendChild(heading);
+
+        const result = document.createElement("p");
+        result.style.whiteSpace = "pre-wrap";
+        result.textContent = photo.result;
+        card.appendChild(result);
+
+        const note = document.createElement("small");
+        note.textContent =
+          "Kết quả chỉ mang tính tham khảo. Hãy kiểm tra thực tế và hỏi cán bộ bảo vệ thực vật trước khi quyết định dùng thuốc.";
+        card.appendChild(note);
+      }
+
+      diseaseHistory.appendChild(card);
+    });
+  } catch (error) {
+    diseaseHistory.textContent =
+      "Không đọc được lịch sử ảnh. Bộ nhớ thiết bị có thể đã đầy.";
+    console.error("Lỗi lịch sử ảnh:", error);
+  }
+}
+
+
+loadDiseasePhotos();
+
+
+function getTransactions() {
+  try {
+    return JSON.parse(localStorage.getItem('nx_transactions') || '[]');
+  } catch (error) {
+    return [];
+  }
+}
+
+function addTransaction() {
+  const type = document.getElementById('txType').value;
+  const category = document.getElementById('txCategory').value;
+  const date = document.getElementById('txDate').value;
+  const note = document.getElementById('txNote').value.trim();
+  const amount = Number(document.getElementById('txAmount').value);
+
+  if (!date || !note || document.getElementById('txAmount').value === '' || !Number.isFinite(amount) || amount <= 0) {
+    alert('Bạn hãy nhập ngày, nội dung và số tiền lớn hơn 0 nhé.');
+    return;
+  }
+
+  const transactions = getTransactions();
+  transactions.push({
+    type: type,
+    category: category,
+    date: date,
+    note: note,
+    amount: amount
+  });
+
+  try {
+    localStorage.setItem('nx_transactions', JSON.stringify(transactions));
+  } catch (error) {
+    alert('Không lưu được giao dịch. Bộ nhớ có thể đã đầy.');
+    return;
+  }
+
+  document.getElementById('txNote').value = '';
+  document.getElementById('txAmount').value = '';
+  renderTransactions();
+  alert('Đã lưu giao dịch!');
+}
+
+function deleteTransaction(index) {
+  if (!confirm('Bạn có chắc muốn xóa giao dịch này không?')) return;
+
+  const transactions = getTransactions();
+  transactions.splice(index, 1);
+  localStorage.setItem('nx_transactions', JSON.stringify(transactions));
+  renderTransactions();
+}
+
+function renderTransactions() {
+  const transactions = getTransactions();
+  let income = 0;
+  let expense = 0;
+
+  transactions.forEach(function (t) {
+    if (t.type === 'income') {
+      income += Number(t.amount) || 0;
+    } else {
+      expense += Number(t.amount) || 0;
+    }
+  });
+
+  document.getElementById('txIncome').textContent =
+    income.toLocaleString('vi-VN') + ' đ';
+  document.getElementById('txExpense').textContent =
+    expense.toLocaleString('vi-VN') + ' đ';
+
+  const profit = income - expense;
+  const profitElement = document.getElementById('txProfit');
+  profitElement.textContent = profit.toLocaleString('vi-VN') + ' đ';
+  profitElement.style.color = profit >= 0 ? 'green' : 'red';
+
+  const list = document.getElementById('txList');
+
+  if (transactions.length === 0) {
+    list.textContent = 'Chưa có giao dịch nào.';
+    return;
+  }
+
+  list.innerHTML = transactions.map(function (t, i) {
+    const isIncome = t.type === 'income';
+    const sign = isIncome ? '+' : '-';
+    const color = isIncome ? 'green' : 'red';
+
+    return '<div style="padding:12px 0;border-bottom:1px solid #eee">' +
+      '<b>' + esc(t.note) + '</b><br>' +
+      '<small>' + esc(t.date) + ' · ' + esc(t.category) + '</small><br>' +
+      '<b style="color:' + color + '">' + sign +
+      (Number(t.amount) || 0).toLocaleString('vi-VN') + ' đ</b><br>' +
+      '<button style="width:auto;padding:6px 10px;margin-top:6px" onclick="deleteTransaction(' +
+      i + ')">Xóa</button>' +
+      '</div>';
+  }).join('');
+}
+
+document.getElementById('txDate').value =
+  new Date().toLocaleDateString('sv-SE');
+
+renderTransactions();
+
+
+loadFarm();renderTaskFarmOptions();renderTasks();syncAllCareReminders();
+
+
+let farmMapInstance = null;
+let farmMapPoints = [];
+let farmMapLine = null;
+let farmMapPolygon = null;
+let farmMapMarkers = [];
+
+function initFarmMap(){
+  const element = document.getElementById('farmMap');
+  if (!element || farmMapInstance) {
+    if (farmMapInstance) farmMapInstance.invalidateSize();
+    return;
+  }
+  if (!window.L) {
+    element.innerHTML = '<p style="padding:12px">Không tải được thư viện bản đồ. Hãy kiểm tra Internet rồi mở lại mục Ruộng lúa.</p>';
+    return;
+  }
+  farmMapInstance = L.map(element).setView([10.03, 105.78], 13);
+  const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, subdomains: 'abc',
+    attribution: '&copy; OpenStreetMap contributors',
+    crossOrigin: true
+  }).addTo(farmMapInstance);
+  let tileErrorShown = false;
+  tileLayer.on('tileerror', function(){
+    if (tileErrorShown) return;
+    tileErrorShown = true;
+    const note = document.getElementById('farmMapNotice');
+    if (note) note.textContent = 'Không tải được ảnh bản đồ. Hãy kiểm tra Internet hoặc tắt VPN/chặn quảng cáo rồi mở lại. Bạn vẫn có thể thử đo sau khi bản đồ hiện.';
+  });
+  tileLayer.on('tileload', function(){
+    const note = document.getElementById('farmMapNotice');
+    if (note) note.textContent = 'Chạm lần lượt ít nhất 3 góc ruộng trên bản đồ để tính diện tích.';
+  });
+  farmMapInstance.on('click', function(e){
+    farmMapPoints.push([e.latlng.lat, e.latlng.lng]);
+    redrawFarmPolygon();
+  });
+  setTimeout(() => farmMapInstance && farmMapInstance.invalidateSize(), 250);
+}
+function redrawFarmPolygon(){
+  if (!farmMapInstance) return;
+  farmMapMarkers.forEach(m => farmMapInstance.removeLayer(m));
+  farmMapMarkers = farmMapPoints.map((p,i) => L.marker(p).addTo(farmMapInstance).bindTooltip('Điểm ' + (i+1)));
+  if (farmMapLine) farmMapInstance.removeLayer(farmMapLine);
+  if (farmMapPolygon) farmMapInstance.removeLayer(farmMapPolygon);
+  farmMapLine = null; farmMapPolygon = null;
+  if (farmMapPoints.length >= 3) {
+    farmMapPolygon = L.polygon(farmMapPoints, {color:'#218447', fillOpacity:0.22}).addTo(farmMapInstance);
+    farmMapInstance.fitBounds(farmMapPolygon.getBounds(), {padding:[15,15]});
+  } else if (farmMapPoints.length >= 2) {
+    farmMapLine = L.polyline(farmMapPoints, {color:'#218447'}).addTo(farmMapInstance);
+  }
+  updateFarmAreaResult();
+}
+function polygonAreaM2(points){
+  if (!points || points.length < 3) return 0;
+  const radius = 6378137;
+  let area = 0;
+  for (let i=0; i<points.length; i++){
+    const p1 = points[i], p2 = points[(i+1)%points.length];
+    const lon1 = p1[1] * Math.PI / 180, lon2 = p2[1] * Math.PI / 180;
+    const lat1 = p1[0] * Math.PI / 180, lat2 = p2[0] * Math.PI / 180;
+    area += (lon2-lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+  }
+  return Math.abs(area * radius * radius / 2);
+}
+function updateFarmAreaResult(){
+  const box = document.getElementById('farmAreaResult');
+  if (!box) return;
+  if (farmMapPoints.length < 3) {
+    box.textContent = 'Đã chọn ' + farmMapPoints.length + ' điểm. Chạm ít nhất 3 góc ruộng để tính diện tích.';
+    return;
+  }
+  const m2 = polygonAreaM2(farmMapPoints);
+  const cong = Number(document.getElementById('congSize')?.value || 1000);
+  box.innerHTML = 'Diện tích ước tính: <b>' + m2.toLocaleString('vi-VN',{maximumFractionDigits:1}) +
+    ' m²</b><br><b>' + (m2/10000).toLocaleString('vi-VN',{maximumFractionDigits:4}) +
+    ' ha</b> · <b>' + (m2/cong).toLocaleString('vi-VN',{maximumFractionDigits:2}) +
+    ' công</b><br><small>Kết quả phụ thuộc độ chính xác khi chạm các góc trên bản đồ.</small>';
+}
+function undoFarmPoint(){
+  if (!farmMapPoints.length) return;
+  farmMapPoints.pop();
+  redrawFarmPolygon();
+}
+function clearFarmPolygon(){
+  farmMapPoints = [];
+  redrawFarmPolygon();
+}
+function useMeasuredArea(){
+  if (farmMapPoints.length < 3) {
+    alert('Hãy chạm ít nhất 3 góc ruộng trên bản đồ trước.');
+    return;
+  }
+  const m2 = polygonAreaM2(farmMapPoints);
+  document.getElementById('area').value = (m2/10000).toFixed(4);
+  document.getElementById('farmResult').style.display = 'block';
+  document.getElementById('farmResult').textContent = 'Đã điền diện tích đo được: ' + (m2/10000).toLocaleString('vi-VN',{maximumFractionDigits:4}) + ' ha. Nhấn lưu để cập nhật ruộng.';
+  document.getElementById('farm').scrollIntoView({behavior:'smooth'});
+}
+
+
+function getSavedWeatherDays() {
+  try {
+    const value = JSON.parse(localStorage.getItem('nx_weather_daily') || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function weatherTaskAdvice(day) {
+  const chance = day.chance;
+  const temp = day.maxTemp;
+  const code = day.code;
+
+  if ([95, 96, 99].includes(code)) {
+    return 'Theo dõi cảnh báo dông; tránh làm việc ngoài đồng khi có dông.';
+  }
+  if (chance !== null && chance >= 60) {
+    return 'Kiểm tra bờ bao, đường thoát nước và chuẩn bị thu dọn lúa đang phơi.';
+  }
+  if (chance !== null && chance >= 40) {
+    return 'Kiểm tra dự báo trước khi phơi lúa; chuẩn bị phương án khi mưa đến.';
+  }
+  if (temp !== null && temp >= 35) {
+    return 'Ưu tiên làm việc vào sáng sớm hoặc chiều mát; uống đủ nước và nghỉ khi mệt.';
+  }
+  if (chance !== null && chance <= 20 && [0, 1].includes(code)) {
+    return 'Có thể cân nhắc việc ngoài trời vào giờ mát; kiểm tra dự báo trước khi bắt đầu.';
+  }
+  return 'Kiểm tra thực tế tại ruộng và cập nhật dự báo trước khi quyết định công việc.';
+}
+
+function renderWeatherTaskSuggestions() {
+  const box = document.getElementById('weatherTaskSuggestions');
+  if (!box) return;
+
+  const days = getSavedWeatherDays();
+  if (!days.length) {
+    box.textContent = 'Chưa có dự báo. Hãy vào mục Thời tiết và nhấn Cập nhật thời tiết.';
+    return;
+  }
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+
+  const tasks = getTasks();
+  box.innerHTML = days.map((day, i) => {
+    const advice = weatherTaskAdvice(day);
+    const exists = tasks.some(t =>
+      !t.done && t.date === day.date && t.name === advice
+    );
+    return '<div style="padding:12px 0;border-bottom:1px solid #ddd">' +
+      '<b>📅 ' + esc(day.date) + '</b>' +
+      '<p>' + esc(advice) + '</p>' +
+      '<p>Xác suất mưa: ' +
+      (day.chance === null ? 'Chưa có dữ liệu' : esc(day.chance) + '%') +
+      ' · Nhiệt độ cao nhất: ' +
+      (day.maxTemp === null ? 'Chưa có dữ liệu' : esc(day.maxTemp) + ' °C') +
+      '</p><button type="button" style="width:auto" ' +
+      (exists ? 'disabled' : '') +
+      ' onclick="addWeatherSuggestedTask(' + i + ')">' +
+      (exists ? 'Đã có trong lịch' : '＋ Thêm vào lịch chăm sóc') +
+      '</button></div>';
+  }).join('');
+}
+
+function addWeatherSuggestedTask(index) {
+  const day = getSavedWeatherDays()[index];
+  if (!day || !day.date) {
+    alert('Không tìm thấy gợi ý. Hãy cập nhật thời tiết lại.');
+    return;
+  }
+
+  const name = weatherTaskAdvice(day);
+  const tasks = getTasks();
+
+  if (tasks.some(t => !t.done && t.date === day.date && t.name === name)) {
+    alert('Công việc này đã có trong lịch.');
+    renderWeatherTaskSuggestions();
+    return;
+  }
+
+  const task = {
+    id: 'weather_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+    name: name,
+    date: day.date,
+    time: '07:00',
+    done: false,
+    type: 'Khác'
+  };
+
+  // Gắn ruộng nếu người dùng đang chọn ruộng trong biểu mẫu lịch.
+  const farmSelect = document.getElementById('taskFarm');
+  const farmValue = farmSelect ? farmSelect.value : '';
+  if (farmValue !== '') {
+    task.farmId = Number(farmValue);
+    const farm = getFarms().find(f => Number(f.id) === task.farmId);
+    task.farmName = farm ? farm.name : '';
+  }
+
+  tasks.push(task);
+  try {
+    localStorage.setItem('nx_tasks', JSON.stringify(tasks));
+  } catch (_) {
+    alert('Không lưu được lịch. Hãy kiểm tra bộ nhớ thiết bị.');
+    return;
+  }
+
+  syncCareReminder(task);
+  renderTasks();
+  renderWeatherTaskSuggestions();
+  alert('Đã thêm công việc vào lịch chăm sóc lúc 07:00.');
+}
+
+async function loadWeather(){
+  const latInput = document.getElementById('weatherLat');
+  const lonInput = document.getElementById('weatherLon');
+  const status = document.getElementById('weatherStatus');
+  const currentBox = document.getElementById('weatherCurrent');
+  const forecastBox = document.getElementById('weatherForecast');
+
+  if(!latInput || !lonInput || !status || !currentBox || !forecastBox){
+    console.error('Không tìm thấy giao diện thời tiết.');
+    return;
+  }
+
+  const lat = Number(latInput.value);
+  const lon = Number(lonInput.value);
+
+  if(latInput.value.trim() === '' || lonInput.value.trim() === '' ||
+     !Number.isFinite(lat) || !Number.isFinite(lon) ||
+     lat < -90 || lat > 90 || lon < -180 || lon > 180){
+    status.textContent = 'Vui lòng nhập tọa độ hợp lệ: vĩ độ -90 đến 90, kinh độ -180 đến 180.';
+    return;
+  }
+
+  status.textContent = 'Đang tải dự báo thời tiết 7 ngày...';
+  currentBox.style.display = 'none';
+  forecastBox.style.display = 'none';
+
+  const descriptions = {
+    0:'Trời quang',1:'Ít mây',2:'Có mây',3:'Nhiều mây',
+    45:'Có sương mù',48:'Sương mù dày',
+    51:'Mưa phùn nhẹ',53:'Mưa phùn vừa',55:'Mưa phùn dày',
+    56:'Mưa phùn lạnh nhẹ',57:'Mưa phùn lạnh dày',
+    61:'Mưa nhẹ',63:'Mưa vừa',65:'Mưa to',
+    66:'Mưa lạnh nhẹ',67:'Mưa lạnh mạnh',
+    71:'Tuyết nhẹ',73:'Tuyết vừa',75:'Tuyết dày',
+    77:'Có hạt băng nhỏ',80:'Mưa rào nhẹ',81:'Mưa rào vừa',
+    82:'Mưa rào mạnh',85:'Mưa tuyết nhẹ',86:'Mưa tuyết mạnh',
+    95:'Có dông',96:'Dông kèm mưa đá nhẹ',99:'Dông kèm mưa đá mạnh'
+  };
+  const icons = code => {
+    if([95,96,99].includes(code)) return '⛈️';
+    if([51,53,55,56,57,61,63,65,66,67,80,81,82,85,86].includes(code)) return '🌧️';
+    if([45,48].includes(code)) return '🌫️';
+    if([71,73,75,77].includes(code)) return '❄️';
+    if(code === 0) return '☀️';
+    if(code === 1 || code === 2) return '🌤️';
+    if(code === 3) return '☁️';
+    return '🌦️';
+  };
+  const fmt = n => n !== null && n !== undefined && n !== '' &&
+    Number.isFinite(Number(n))
+    ? Number(n).toLocaleString('vi-VN',{maximumFractionDigits:1}) : 'Chưa có';
+  const escWeather = v => String(v ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+  const dayLabel = (date, index) => {
+    if(index === 0) return 'Hôm nay';
+    if(index === 1) return 'Ngày mai';
+    if(index === 2) return 'Ngày kia';
+    const parts = String(date || '').split('-');
+    return parts.length === 3 ? parts[2] + '/' + parts[1] : String(date || 'Ngày ' + (index+1));
+  };
+  const rainAdvice = (chance, amount, code, maxTemp) => {
+    if(code === 95 || code === 96 || code === 99)
+      return 'Có nguy cơ dông. Theo dõi cảnh báo địa phương, tránh trú ngoài đồng khi dông đến.';
+    if(chance === null || chance === undefined || !Number.isFinite(Number(chance)))
+      return 'Chưa có số liệu xác suất mưa. Hãy kiểm tra lại dự báo trước khi ra đồng hoặc phơi lúa.';
+    if(Number(chance) >= 70 || (Number(chance) >= 50 && Number(amount) >= 5))
+      return 'Khả năng mưa cao. Nên chuẩn bị chỗ che hoặc phương án thu dọn lúa đang phơi; kiểm tra thoát nước ruộng.';
+    if(Number(chance) >= 40)
+      return 'Có thể có mưa. Nên xem lại dự báo trước khi phơi lúa, bón phân hoặc làm việc ngoài đồng.';
+    if(Number(maxTemp) >= 35)
+      return 'Trời có thể rất nóng. Uống đủ nước, nghỉ nơi râm mát và tránh làm việc nặng giữa trưa.';
+    if(Number(chance) <= 20 && [0,1].includes(Number(code)))
+      return 'Khả năng mưa thấp, trời có thể nắng. Kiểm tra mực nước ruộng và tránh làm việc lâu dưới nắng gắt.';
+    return 'Theo dõi thời tiết thực tế trước khi quyết định công việc đồng áng.';
+  };
+
+  try{
+    const params = new URLSearchParams({
+      latitude:String(lat),
+      longitude:String(lon),
+      current:'temperature_2m,relative_humidity_2m,precipitation,weather_code',
+      daily:'weather_code,precipitation_probability_max,precipitation_sum,temperature_2m_max,temperature_2m_min',
+      timezone:'Asia/Ho_Chi_Minh',
+      forecast_days:'7'
+    });
+    const response = await fetch('https://api.open-meteo.com/v1/forecast?' + params.toString());
+    if(!response.ok) throw new Error('Máy chủ thời tiết trả về mã ' + response.status);
+    const data = await response.json();
+
+    if(!data.current || !data.daily || !Array.isArray(data.daily.time) || !data.daily.time.length)
+      throw new Error('Dữ liệu thời tiết không đầy đủ.');
+
+    const c = data.current;
+    const d = data.daily;
+    try {
+      const savedDays = (data.daily.time || []).slice(0, 7).map((date, i) => {
+        const read = key => {
+          const values = data.daily[key] || [];
+          const value = values[i];
+          return value == null || value === '' || !Number.isFinite(Number(value))
+            ? null : Number(value);
+        };
+        return {
+          date: date,
+          chance: read('precipitation_probability_max'),
+          amount: read('precipitation_sum'),
+          maxTemp: read('temperature_2m_max'),
+          code: read('weather_code')
+        };
+      });
+      localStorage.setItem('nx_weather_daily', JSON.stringify(savedDays));
+      renderWeatherTaskSuggestions();
+    } catch (e) {
+      console.warn('Không lưu được dự báo cho lịch chăm sóc:', e);
+    }
+
+    const currentCode = Number(c.weather_code);
+    currentBox.innerHTML =
+      '<h3 style="font-size:1.35rem">🌤️ Thời tiết hiện tại</h3>' +
+      '<p style="font-size:1.25rem"><b>' + icons(currentCode) + ' ' +
+      escWeather(descriptions[currentCode] || 'Chưa xác định') + '</b></p>' +
+      '<p style="font-size:1.1rem">🌡️ Nhiệt độ: <b>' + fmt(c.temperature_2m) + ' °C</b></p>' +
+      '<p style="font-size:1.1rem">💧 Độ ẩm: <b>' + fmt(c.relative_humidity_2m) + '%</b></p>' +
+      '<p style="font-size:1.1rem">🌧️ Lượng mưa hiện tại: <b>' + fmt(c.precipitation) + ' mm</b></p>' +
+      '<small>Thời điểm dữ liệu: ' + escWeather(c.time || '') + '</small>';
+    currentBox.style.display = 'block';
+
+    let cards = '';
+    let alerts = [];
+    for(let i=0; i<Math.min(7,d.time.length); i++){
+      const rawChance = (d.precipitation_probability_max || [])[i];
+      const chance = rawChance === null || rawChance === undefined ||
+        rawChance === '' || !Number.isFinite(Number(rawChance)) ? null : Number(rawChance);
+      const amount = (d.precipitation_sum || [])[i];
+      const maxTemp = (d.temperature_2m_max || [])[i];
+      const minTemp = (d.temperature_2m_min || [])[i];
+      const rawCode = (d.weather_code || [])[i];
+      const code = rawCode === null || rawCode === undefined ? -1 : Number(rawCode);
+      const advice = rainAdvice(chance, amount, code, maxTemp);
+      const isAlert = code === 95 || code === 96 || code === 99 ||
+        (chance !== null && chance >= 60);
+      if(isAlert) alerts.push(dayLabel(d.time[i],i) + ': ' + advice);
+
+      cards +=
+        '<article style="border:1px solid #cbd5e1;border-radius:12px;padding:14px;margin:12px 0;background:' +
+        (isAlert ? '#fff7ed' : '#f8fafc') + ';color:#172033">' +
+        '<h4 style="font-size:1.2rem;margin:0 0 8px">' +
+        escWeather(dayLabel(d.time[i],i)) + ' · ' + escWeather(d.time[i]) + '</h4>' +
+        '<p style="font-size:1.25rem;margin:6px 0"><b>' + icons(code) + ' ' +
+        escWeather(descriptions[code] || 'Chưa xác định') + '</b></p>' +
+        '<p style="font-size:1.05rem;margin:6px 0">🌡️ Thấp nhất ' + fmt(minTemp) +
+        ' °C · Cao nhất ' + fmt(maxTemp) + ' °C</p>' +
+        '<p style="font-size:1.1rem;margin:6px 0">🌧️ Khả năng mưa: <b>' +
+        (chance === null ? 'Chưa có dữ liệu' : fmt(chance) + '%') + '</b></p>' +
+        '<p style="font-size:1.05rem;margin:6px 0">💧 Lượng mưa dự kiến: ' + fmt(amount) + ' mm/ngày</p>' +
+        '<p style="font-size:1.05rem;margin:8px 0"><b>🌾 Bà con nên làm:</b> ' +
+        escWeather(advice) + '</p></article>';
+    }
+
+    forecastBox.innerHTML =
+      '<h3 style="font-size:1.4rem">📅 Dự báo 7 ngày tới</h3>' +
+      '<p style="font-size:1.05rem">Xem trước từng ngày để chủ động phơi lúa, chăm sóc ruộng và sắp xếp công việc.</p>' +
+      (alerts.length
+        ? '<div class="result" style="font-size:1.15rem;background:#fff7ed;padding:14px;border-radius:10px"><b>⚠️ Ngày cần chú ý</b><ul>' +
+          alerts.map(a => '<li>' + escWeather(a) + '</li>').join('') + '</ul></div>'
+        : '<div class="result" style="font-size:1.05rem;padding:12px">Chưa thấy tín hiệu cảnh báo mưa lớn theo ngưỡng trong dự báo hiện có. Vẫn nên xem dự báo mỗi ngày.</div>') +
+      cards +
+      '<p style="font-size:1rem"><b>Lưu ý:</b> Dự báo có thể thay đổi. Xác suất mưa không có nghĩa là chắc chắn sẽ mưa. Hãy kiểm tra lại vào buổi sáng và trước khi phơi lúa hoặc ra đồng.</p>' +
+      '<small>Nguồn: Open-Meteo. Dữ liệu phụ thuộc vị trí và thời điểm cập nhật.</small>';
+    forecastBox.style.display = 'block';
+    status.textContent = 'Đã tải dự báo. Hãy xem các ngày có cảnh báo trước khi sắp xếp công việc.';
+  }catch(error){
+    console.error('Lỗi thời tiết:', error);
+    status.textContent = 'Không tải được thời tiết. Hãy kiểm tra Internet và thử lại. Chi tiết: ' + (error && error.message ? error.message : 'Lỗi không xác định');
+  }
+}
+
+
+
+// ===== Tài khoản Nông Nghiệp Xanh =====
+(() => {
+  const API = "https://nongnghiep-xanh-ai.nguyenduytuong093.workers.dev";
+  const overlay = document.getElementById('nxAuthOverlay');
+  const form = document.getElementById('nxAuthForm');
+  const username = document.getElementById('nxUsername');
+  const password = document.getElementById('nxPassword');
+  const submit = document.getElementById('nxAuthSubmit');
+  const switchBtn = document.getElementById('nxAuthSwitch');
+  const message = document.getElementById('nxAuthMessage');
+  const bar = document.getElementById('nxAccountBar');
+  const accountName = document.getElementById('nxAccountName');
+  const logoutBtn = document.getElementById('nxLogout');
+
+  let mode = 'login';
+  let busy = false;
+  let token = null;
+
+  function say(text, good = false) {
+    message.textContent = text;
+    message.style.color = good ? '#176b3a' : '#a52b2b';
+  }
+
+  function showSignedOut(text = '') {
+    token = null;
+    try { localStorage.removeItem('nx_auth_token'); } catch (_) {}
+    overlay.hidden = false;
+    bar.hidden = true;
+    accountName.textContent = '';
+    password.value = '';
+    if (text) say(text);
+  }
+
+  function showSignedIn(user) {
+    overlay.hidden = true;
+    bar.hidden = false;
+    accountName.textContent = user.username;
+    password.value = '';
+  }
+
+  async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const response = await fetch(API + path, {
+      method: options.method || 'GET',
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    let data = {};
+    try { data = await response.json(); } catch (_) {}
+    if (!response.ok) {
+      const error = new Error(data.error || 'Yêu cầu thất bại (' + response.status + ').');
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  switchBtn.addEventListener('click', () => {
+    mode = mode === 'login' ? 'register' : 'login';
+    submit.textContent = mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
+    password.autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+    switchBtn.textContent = mode === 'login'
+      ? 'Chưa có tài khoản? Đăng ký'
+      : 'Đã có tài khoản? Đăng nhập';
+    say(mode === 'register'
+      ? 'Tên tài khoản từ 3–24 ký tự, chỉ gồm chữ, số và dấu gạch dưới.'
+      : '');
+  });
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (busy) return;
+
+    const name = username.value.trim();
+    const pass = password.value;
+    if (!/^[A-Za-z0-9_]{3,24}$/.test(name)) {
+      say('Tên tài khoản phải có 3–24 ký tự: chữ, số hoặc dấu gạch dưới.');
+      return;
+    }
+    if (!pass.length || (mode === 'register' && pass.length < 10) || pass.length > 128) {
+      say(mode === 'register' ? 'Mật khẩu đăng ký phải có từ 10 đến 128 ký tự.' : 'Vui lòng nhập mật khẩu (tối đa 128 ký tự).');
+      return;
+    }
+
+    busy = true;
+    submit.disabled = true;
+    switchBtn.disabled = true;
+    say(mode === 'login' ? 'Đang đăng nhập...' : 'Đang tạo tài khoản...', true);
+
+    try {
+      if (mode === 'register') {
+        const result = await api('/auth/register', {
+          method: 'POST',
+          body: { username: name, password: pass }
+        });
+        mode = 'login';
+        submit.textContent = 'Đăng nhập';
+        password.autocomplete = 'current-password';
+        switchBtn.textContent = 'Chưa có tài khoản? Đăng ký';
+        password.value = '';
+        say(result.message || 'Đăng ký thành công. Hãy đăng nhập.', true);
+      } else {
+        const result = await api('/auth/login', {
+          method: 'POST',
+          body: { username: name, password: pass }
+        });
+        if (!result.token || !result.user || !result.user.username) {
+          throw new Error('Máy chủ trả về thông tin đăng nhập không hợp lệ.');
+        }
+        token = result.token;
+        // Token được lưu cục bộ để giữ phiên khi đóng/mở lại ứng dụng; không lưu mật khẩu.
+        try { localStorage.setItem('nx_auth_token', token); }
+        catch (_) { throw new Error('Không thể lưu phiên trên thiết bị. Hãy thử lại.'); }
+        showSignedIn(result.user);
+      }
+    } catch (error) {
+      say(error.message || 'Không thể kết nối máy chủ.');
+    } finally {
+      busy = false;
+      submit.disabled = false;
+      switchBtn.disabled = false;
+    }
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    if (busy) return;
+    busy = true;
+    logoutBtn.disabled = true;
+    try {
+      if (token) {
+        await api('/auth/logout', { method: 'POST' });
+      }
+      showSignedOut('Bạn đã đăng xuất.');
+    } catch (error) {
+      // Nếu máy chủ không xác nhận, giữ phiên hiện tại để tránh báo sai.
+      say('Chưa xác nhận được đăng xuất: ' + error.message);
+    } finally {
+      busy = false;
+      logoutBtn.disabled = false;
+    }
+  });
+
+  async function init() {
+    try {
+      token = localStorage.getItem('nx_auth_token');
+    } catch (_) {
+      token = null;
+    }
+    if (!token) {
+      showSignedOut();
+      return;
+    }
+    try {
+      const result = await api('/auth/me', { method: 'POST' });
+      if (!result.user) throw new Error('Máy chủ chưa xác nhận được phiên đăng nhập.');
+      showSignedIn(result.user);
+    } catch (error) {
+      if (error && error.status === 401) {
+        showSignedOut('Phiên đăng nhập hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.');
+        return;
+      }
+
+      // Lỗi mạng hoặc máy chủ tạm thời không được tự xóa token.
+      overlay.hidden = false;
+      bar.hidden = true;
+      say('Chưa kiểm tra được phiên đăng nhập. Hãy kiểm tra Internet và thử mở lại ứng dụng. Phiên đã lưu vẫn được giữ.', false);
+      console.warn('Không kiểm tra được phiên đăng nhập:', error);
+    }
+  }
+
+  init();
+})();
+
+
+loadBusinessPlan();
+calculateBusiness();

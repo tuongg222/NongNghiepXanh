@@ -1,0 +1,56 @@
+name: Build Nong Nghiep Xanh APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Lay ma nguon
+        uses: actions/checkout@v4
+
+      - name: Cai Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cai Android SDK
+        run: |
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+
+          SDKMANAGER="$(find "$SDK/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "Khong tim thay sdkmanager"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Bien dich APK v1.1.0
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: '8.9'
+          arguments: clean assembleDebug
+
+      - name: Ghi thong tin ban build
+        run: |
+          echo "## Nong Nghiep Xanh APK v1.1.0" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Workflow: Build Nong Nghiep Xanh APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "- APK path: app/build/outputs/apk/debug/app-debug.apk" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Luu file APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NongNghiepXanh-APK-v1.1.0-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

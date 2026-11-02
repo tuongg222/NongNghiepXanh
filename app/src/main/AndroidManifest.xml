@@ -10,7 +10,7 @@
 
     <application
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:label="Nông Nghiệp Thông Minh"
+        android:label="Nông Nghiệp Xanh"
         android:icon="@drawable/ic_launcher"
         android:usesCleartextTraffic="false"
         android:allowBackup="true"

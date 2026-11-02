@@ -17,6 +17,9 @@ jobs:
       - name: Lay ma nguon
         uses: actions/checkout@v4
 
+      - name: Kiem tra ma nguon truoc khi build
+        run: ./verify-project.sh
+
       - name: Cai Java 17
         uses: actions/setup-java@v4
         with:
@@ -35,7 +38,7 @@ jobs:
             echo "::error::Khong tim thay sdkmanager trong $SDK"
             exit 1
           fi
-          "$SDKMANAGER" --licenses </dev/null || true
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Bien dich APK
