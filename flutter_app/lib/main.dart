@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +14,7 @@ class NongNghiepXanhApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const green = Color(0xFF167A45);
+
     return MaterialApp(
       title: 'Nông Nghiệp Xanh',
       debugShowCheckedModeBanner: false,
@@ -24,7 +27,36 @@ class NongNghiepXanhApp extends StatelessWidget {
           foregroundColor: Color(0xFF163D27),
         ),
       ),
-      home: const HomeScreen(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  late final Future<void> session = AuthService.restoreSession();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: session,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        return AuthService.token != null
+            ? const HomeScreen()
+            : const LoginScreen();
+      },
     );
   }
 }

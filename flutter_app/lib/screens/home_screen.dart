@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/weather_service.dart';
 import 'diagnose_screen.dart';
+import 'login_screen.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,7 +46,43 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(width: 8),
           Text('Nông Nghiệp Xanh', style: TextStyle(fontWeight: FontWeight.w800)),
         ]),
-        actions: [IconButton(onPressed: refresh, icon: const Icon(Icons.refresh))],
+        actions: [
+          IconButton(
+            tooltip: 'Tài khoản',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () {
+              final name = AuthService.user?['username'] ?? 'Nhà nông';
+              showDialog(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('Tài khoản'),
+                  content: Text('Xin chào $name'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Đóng'),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        Navigator.pop(dialogContext);
+                        await AuthService.logout();
+                        if (!mounted) return;
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      child: const Text('Đăng xuất'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          IconButton(onPressed: refresh, icon: const Icon(Icons.refresh)),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: refresh,
