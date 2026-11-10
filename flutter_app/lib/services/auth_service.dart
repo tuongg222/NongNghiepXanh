@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_service.dart';
@@ -26,11 +27,25 @@ class AuthService {
     String endpoint,
     Map<String, dynamic> body,
   ) async {
-    final response = await http.post(
-      Uri.parse('${ApiService.workerBase}$endpoint'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    ).timeout(const Duration(seconds: 30));
+    http.Response response;
+    try {
+      response = await http.post(
+        Uri.parse('${ApiService.workerBase}$endpoint'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 30));
+    } on SocketException {
+      throw Exception('Không thể kết nối máy chủ. Hãy kiểm tra Internet hoặc DNS.');
+    } on HttpException {
+      throw Exception('Lỗi kết nối HTTP.');
+    } on FormatException {
+      throw Exception('Dữ liệu máy chủ không hợp lệ.');
+    } catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Kết nối quá lâu. Vui lòng thử lại.');
+      }
+      rethrow;
+    }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
 
