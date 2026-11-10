@@ -7,6 +7,7 @@ import 'diagnose_screen.dart';
 import 'field_map_screen.dart';
 import 'login_screen.dart';
 import 'journal_screen.dart';
+import 'price_screen.dart';
 
 const nxGreen = Color(0xFF167A45);
 const nxDark = Color(0xFF103D29);
@@ -351,9 +352,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Giá nông sản',
                           subtitle: 'Theo dõi thị trường',
                           color: const Color(0xFFE19A36),
-                          onTap: () => openFeature(
-                            'Giá nông sản',
-                            'Theo dõi giá lúa và các nông sản theo khu vực.',
+                          onTap: () => Navigator.push(
+                            context,
+                            _smoothRoute(const PriceScreen()),
                           ),
                         ),
                       ),
