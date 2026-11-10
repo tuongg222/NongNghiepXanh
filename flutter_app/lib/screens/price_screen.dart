@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/sync_service.dart';
 
 class PriceScreen extends StatefulWidget {
   const PriceScreen({super.key});
@@ -36,6 +37,7 @@ class _PriceScreenState extends State<PriceScreen> {
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('nx_prices', jsonEncode(prices));
+    await SyncService.uploadKey('prices', prices);
   }
 
   Future<void> addPrice() async {

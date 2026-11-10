@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/sync_service.dart';
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -41,6 +42,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     await p.setString('nx_finance', jsonEncode(records));
+    await SyncService.uploadKey('finance', records);
   }
 
   double get expenses => records

@@ -49,6 +49,19 @@ class SyncService {
     }
   }
 
+  /// Tự sao lưu một nhóm dữ liệu sau khi lưu local.
+  /// Không đăng nhập hoặc lỗi mạng thì vẫn giữ dữ liệu trên máy.
+  static Future<void> uploadKey(String key, dynamic data) async {
+    if (AuthService.token == null || AuthService.token!.isEmpty) return;
+
+    try {
+      await _putCloud(key, data);
+    } catch (e) {
+      // Local đã lưu thành công; lỗi Cloud không làm mất dữ liệu.
+      print('Cloud sync $key thất bại: $e');
+    }
+  }
+
   /// Đẩy toàn bộ dữ liệu hiện có trên máy lên Cloudflare.
   static Future<void> uploadAll() async {
     final prefs = await SharedPreferences.getInstance();

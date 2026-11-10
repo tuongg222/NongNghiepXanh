@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/sync_service.dart';
 
 class SeasonScreen extends StatefulWidget {
   const SeasonScreen({super.key});
@@ -36,6 +37,7 @@ class _SeasonScreenState extends State<SeasonScreen> {
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('nx_seasons', jsonEncode(seasons));
+    await SyncService.uploadKey('seasons', seasons);
   }
 
   Future<void> addSeason() async {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/sync_service.dart';
 
 class JournalScreen extends StatefulWidget {
   const JournalScreen({super.key});
@@ -39,6 +40,7 @@ class _JournalScreenState extends State<JournalScreen> {
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('nx_journal', jsonEncode(entries));
+    await SyncService.uploadKey('journal', entries);
   }
 
   Future<void> addEntry() async {
