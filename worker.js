@@ -1,3 +1,4 @@
+import { handleData } from "./data_api.js";
 import { handleAuth } from "./auth.js";
 
 const CORS = {
@@ -20,6 +21,15 @@ export default {
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS });
+    }
+
+    if (url.pathname === "/data") {
+      try {
+        return await handleData(request, env);
+      } catch (error) {
+        console.error("Data API error:", error);
+        return reply({ error: "Lỗi xử lý dữ liệu." }, 500);
+      }
     }
 
     if (url.pathname.startsWith("/auth/")) {

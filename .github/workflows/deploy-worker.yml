@@ -1,15 +1,16 @@
-name: Deploy Nong Nghiep Xanh AI Worker
+name: Deploy Nong Nghiep Xanh Worker
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - worker.js
       - auth.js
+      - data_api.js
       - wrangler.toml
       - .github/workflows/deploy-worker.yml
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -17,12 +18,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install Wrangler
-        run: npm install --global wrangler
+
       - name: Deploy Worker
         run: npx wrangler deploy
         env:

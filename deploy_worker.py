@@ -1,0 +1,39 @@
+from pathlib import Path
+
+p = Path(".github/workflows/deploy-worker.yml")
+
+workflow = """name: Deploy Nong Nghiep Xanh Worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - worker.js
+      - auth.js
+      - data_api.js
+      - wrangler.toml
+      - .github/workflows/deploy-worker.yml
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy Worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+"""
+
+p.write_text(workflow)
+print("Đã tạo:", p)
