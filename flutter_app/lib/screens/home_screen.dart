@@ -487,7 +487,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 Route<T> _smoothRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
-    transitionDuration: const Duration(milliseconds: 380),
+    transitionDuration: const Duration(milliseconds: 520),
     pageBuilder: (_, __, ___) => page,
     transitionsBuilder: (_, animation, __, child) {
       final curved = CurvedAnimation(
@@ -570,15 +570,57 @@ class _FeatureCard extends StatefulWidget {
   State<_FeatureCard> createState() => _FeatureCardState();
 }
 
-class _FeatureCardState extends State<_FeatureCard> {
+class _FeatureCardState extends State<_FeatureCard>
+    with SingleTickerProviderStateMixin {
   bool pressed = false;
+
+  late final AnimationController dashboardEntranceController;
+  late final Animation<double> dashboardFade;
+  late final Animation<Offset> dashboardSlide;
+
+  @override
+  void initState() {
+    super.initState();
+
+    dashboardEntranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+
+    dashboardFade = CurvedAnimation(
+      parent: dashboardEntranceController,
+      curve: Curves.easeOut,
+    );
+
+    dashboardSlide = Tween<Offset>(
+      begin: const Offset(0, .10),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: dashboardEntranceController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    dashboardEntranceController.forward();
+  }
+
+  @override
+  void dispose() {
+    dashboardEntranceController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: pressed ? .965 : 1,
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeOut,
+    return FadeTransition(
+      opacity: dashboardFade,
+      child: SlideTransition(
+        position: dashboardSlide,
+        child: AnimatedScale(
+      scale: pressed ? .955 : 1,
+      duration: const Duration(milliseconds: 190),
+      curve: Curves.easeOutCubic,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(23),
         child: BackdropFilter(
@@ -633,6 +675,8 @@ class _FeatureCardState extends State<_FeatureCard> {
               ),
             ),
           ),
+        ),
+      ),
         ),
       ),
     );
