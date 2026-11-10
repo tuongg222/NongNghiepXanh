@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/weather_service.dart';
 import 'diagnose_screen.dart';
+import 'field_map_screen.dart';
 import 'login_screen.dart';
 
 const nxGreen = Color(0xFF167A45);
