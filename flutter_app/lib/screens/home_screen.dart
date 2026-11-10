@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../services/sync_service.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/weather_service.dart';
@@ -375,6 +376,32 @@ class _HomeScreenState extends State<HomeScreen> {
                       context,
                       _smoothRoute(const FinanceScreen()),
                     ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _FeatureCard(
+                    icon: Icons.cloud_sync_rounded,
+                    title: 'Đồng bộ Cloud',
+                    subtitle: 'Sao lưu dữ liệu lên đám mây',
+                    color: const Color(0xFF2878C8),
+                    large: true,
+                    onTap: () async {
+                      try {
+                        await SyncService.uploadAll();
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Đã sao lưu dữ liệu lên Cloud!'),
+                          ),
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Lỗi Cloud: $e')),
+                        );
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 22),
