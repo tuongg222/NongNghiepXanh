@@ -83,6 +83,33 @@ class SyncService {
     }
   }
 
+  /// Đồng bộ lúc khởi động nhưng không ghi đè dữ liệu đang có.
+  static Future<void> syncOnStartup() async {
+    if (AuthService.token == null || AuthService.token!.isEmpty) return;
+
+    try {
+      final cloud = await _getCloud();
+      final prefs = await SharedPreferences.getInstance();
+
+      for (final entry in _keys.entries) {
+        final raw = prefs.getString(entry.value);
+        final hasCloud = cloud.containsKey(entry.key);
+
+        if (raw == null && hasCloud) {
+          await prefs.setString(
+            entry.value,
+            jsonEncode(cloud[entry.key]),
+          );
+        } else if (raw != null && !hasCloud) {
+          await _putCloud(entry.key, jsonDecode(raw));
+        }
+        // Cả local và cloud đều có: không tự ghi đè.
+      }
+    } catch (e) {
+      print('Startup Cloud sync thất bại: $e');
+    }
+  }
+
   /// Cloud có nhóm dữ liệu thì tải về; cloud chưa có thì đẩy dữ liệu local lên.
   static Future<void> syncAll() async {
     final cloud = await _getCloud();

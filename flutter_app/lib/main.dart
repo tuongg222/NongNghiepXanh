@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'services/sync_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +41,14 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  late final Future<void> session = AuthService.restoreSession();
+  late final Future<void> session = initializeApp();
+
+  Future<void> initializeApp() async {
+    await AuthService.restoreSession();
+    if (AuthService.token != null) {
+      await SyncService.syncOnStartup();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
