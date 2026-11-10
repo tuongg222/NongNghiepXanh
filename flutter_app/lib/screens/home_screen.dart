@@ -78,8 +78,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> logout() async {
+    final username = AuthService.user?['username'] ?? 'Nhà nông';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Đăng xuất tài khoản?'),
+        content: Text(
+          'Bạn đang đăng nhập với tài khoản "$username". '
+          'Dữ liệu nông trại trên thiết bị sẽ được giữ nguyên.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Ở lại'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     await AuthService.logout();
     if (!mounted) return;
+
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const LoginScreen(),
