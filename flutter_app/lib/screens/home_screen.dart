@@ -11,6 +11,7 @@ import 'journal_screen.dart';
 import 'price_screen.dart';
 import 'finance_screen.dart';
 import 'season_screen.dart';
+import 'field_screen.dart';
 
 const nxGreen = Color(0xFF167A45);
 const nxDark = Color(0xFF103D29);
@@ -355,6 +356,28 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
+                    ],
+                  ),
+
+
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _FeatureCard(
+                          icon: Icons.agriculture_rounded,
+                          title: 'Ruộng đất',
+                          subtitle: 'Quản lý các thửa ruộng',
+                          color: const Color(0xFF4CAF50),
+                          onTap: () => Navigator.push(
+                            context,
+                            _smoothRoute(const FieldScreen()),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: SizedBox()),
                     ],
                   ),
 

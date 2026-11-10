@@ -36,7 +36,7 @@ async function getUser(request, env) {
   return session.user_id;
 }
 
-const ALLOWED_KEYS = ["seasons", "journal", "finance", "prices"];
+const ALLOWED_KEYS = ["seasons", "journal", "finance", "prices", "fields"];
 
 export async function handleData(request, env) {
   if (request.method === "OPTIONS") {

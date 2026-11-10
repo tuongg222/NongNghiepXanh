@@ -10,6 +10,7 @@ class SyncService {
     'journal': 'nx_journal',
     'finance': 'nx_finance',
     'prices': 'nx_prices',
+    'fields': 'nx_fields',
   };
 
   static Map<String, String> _headers() {
