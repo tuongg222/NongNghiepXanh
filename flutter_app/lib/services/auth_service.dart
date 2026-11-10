@@ -34,7 +34,9 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 30));
-    } on SocketException {
+    } on SocketException catch (e, st) {
+      print('AUTH SOCKET ERROR: $e');
+      print('AUTH STACK: $st');
       throw Exception('Không thể kết nối máy chủ. Hãy kiểm tra Internet hoặc DNS.');
     } on HttpException {
       throw Exception('Lỗi kết nối HTTP.');
