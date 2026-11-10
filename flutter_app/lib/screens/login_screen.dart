@@ -19,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen>
   final password = TextEditingController();
 
   late final AnimationController animationController;
+  late final AnimationController riceController;
   late final Animation<double> fade;
   late final Animation<Offset> slide;
 
@@ -52,6 +53,11 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     animationController.forward();
+
+    riceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
   }
 
   Future<void> submit() async {
@@ -104,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     animationController.dispose();
+    riceController.dispose();
     username.dispose();
     password.dispose();
     super.dispose();
@@ -289,47 +296,66 @@ class _LoginScreenState extends State<LoginScreen>
 
                           const SizedBox(height: 24),
 
-                          // Farmer illustration
+                          // Animated rice illustration
                           SizedBox(
-                            height: 145,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                glowCircle(110, const Color(0xFF9AFFC8)),
-                                Container(
-                                  width: 112,
-                                  height: 112,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withOpacity(.10),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(.25),
+                            height: 165,
+                            child: AnimatedBuilder(
+                              animation: riceController,
+                              builder: (context, child) {
+                                final angle =
+                                    (riceController.value - .5) * .10;
+
+                                return Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    glowCircle(
+                                      125,
+                                      const Color(0xFF9AFFC8),
                                     ),
-                                  ),
-                                ),
-                                const Text(
-                                  '👨‍🌾',
-                                  style: TextStyle(fontSize: 75),
-                                ),
-                                Positioned(
-                                  right: 85,
-                                  top: 15,
-                                  child: Icon(
-                                    Icons.spa,
-                                    size: 27,
-                                    color: Colors.white.withOpacity(.8),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: 75,
-                                  bottom: 15,
-                                  child: Icon(
-                                    Icons.eco,
-                                    size: 25,
-                                    color: const Color(0xFFB9FFD8),
-                                  ),
-                                ),
-                              ],
+                                    Container(
+                                      width: 135,
+                                      height: 135,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withOpacity(.08),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(.22),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 5,
+                                      child: Transform.rotate(
+                                        angle: angle,
+                                        alignment: Alignment.bottomCenter,
+                                        child: const Icon(
+                                          Icons.grass_rounded,
+                                          size: 125,
+                                          color: Color(0xFFB9FFD8),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 15,
+                                      right: 75,
+                                      child: Icon(
+                                        Icons.auto_awesome,
+                                        size: 22,
+                                        color: Colors.white.withOpacity(.8),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 28,
+                                      left: 65,
+                                      child: Icon(
+                                        Icons.eco_rounded,
+                                        size: 25,
+                                        color: const Color(0xFF9AFFC8),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
 
