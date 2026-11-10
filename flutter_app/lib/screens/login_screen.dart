@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../widgets/rice_cinematic.dart';
 import 'home_screen.dart';
 
 const green = Color(0xFF16A05A);
@@ -14,12 +15,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final username = TextEditingController();
   final password = TextEditingController();
 
   late final AnimationController animationController;
   late final AnimationController riceController;
+  late final AnimationController introController;
+  late final Animation<double> introScale;
+  late final Animation<double> formOpacity;
+  late final Animation<Offset> formSlide;
   late final Animation<double> fade;
   late final Animation<Offset> slide;
 
@@ -53,6 +58,34 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     animationController.forward();
+
+    introController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3600),
+    );
+
+    introScale = Tween<double>(
+      begin: 0.05,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: introController,
+      curve: Curves.easeOutExpo,
+    ));
+
+    formOpacity = CurvedAnimation(
+      parent: introController,
+      curve: const Interval(.55, 1.0, curve: Curves.easeIn),
+    );
+
+    formSlide = Tween<Offset>(
+      begin: const Offset(0, .16),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: introController,
+      curve: const Interval(.55, 1.0, curve: Curves.easeOutCubic),
+    ));
+
+    introController.forward();
 
     riceController = AnimationController(
       vsync: this,
@@ -111,6 +144,7 @@ class _LoginScreenState extends State<LoginScreen>
   void dispose() {
     animationController.dispose();
     riceController.dispose();
+    introController.dispose();
     username.dispose();
     password.dispose();
     super.dispose();
@@ -242,6 +276,72 @@ class _LoginScreenState extends State<LoginScreen>
             child: glowCircle(250, const Color(0xFF00E5A0)),
           ),
 
+          // CINEMATIC RICE INTRO
+          AnimatedBuilder(
+            animation: introController,
+            builder: (context, child) {
+              final opacity = (1.0 - (introController.value - .62).clamp(0.0, 1.0))
+                  .clamp(0.0, 1.0);
+
+              return IgnorePointer(
+                child: Opacity(
+                  opacity: opacity,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: introScale.value,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 190,
+                            height: 190,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF9AFFC8).withOpacity(.08),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(.2),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF6CFFB2)
+                                      .withOpacity(.4),
+                                  blurRadius: 70,
+                                  spreadRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: RiceCinematic(),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'NÔNG NGHIỆP XANH',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'SMART FARMING • GREEN FUTURE',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(.7),
+                              fontSize: 10,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -252,10 +352,14 @@ class _LoginScreenState extends State<LoginScreen>
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 440),
                   child: FadeTransition(
-                    opacity: fade,
+                    opacity: formOpacity,
                     child: SlideTransition(
-                      position: slide,
-                      child: Column(
+                      position: formSlide,
+                      child: FadeTransition(
+                        opacity: fade,
+                        child: SlideTransition(
+                          position: slide,
+                          child: Column(
                         children: [
                           // Logo
                           glass(
@@ -556,12 +660,14 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ],
                       ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
+            ),
         ],
       ),
     );
