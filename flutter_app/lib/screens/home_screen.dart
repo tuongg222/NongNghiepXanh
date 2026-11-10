@@ -338,9 +338,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Nhật ký',
                           subtitle: 'Ghi hoạt động',
                           color: const Color(0xFF9A65C8),
-                          onTap: () => openFeature(
-                            'Nhật ký nông nghiệp',
-                            'Lưu lịch sử tưới nước, bón phân và chăm sóc.',
+                          onTap: () => Navigator.push(
+                            context,
+                            _smoothRoute(const JournalScreen()),
                           ),
                         ),
                       ),
