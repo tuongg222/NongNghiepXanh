@@ -16,6 +16,8 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
   final mapController = MapController();
   final points = <LatLng>[];
   bool locating = false;
+  bool satelliteMode = false;
+  double congM2 = 1000;
   String fieldName = 'Ruộng của tôi';
 
   static const distance = Distance();
@@ -38,6 +40,15 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
       sum += xy[i][0] * xy[j][1] - xy[j][0] * xy[i][1];
     }
     return sum.abs() / 2;
+  }
+
+  double get perimeter {
+    if (points.length < 2) return 0;
+    double total = 0;
+    for (int i = 0; i < points.length; i++) {
+      total += distance(points[i], points[(i + 1) % points.length]);
+    }
+    return total;
   }
 
   String fmt(double m) {
@@ -157,6 +168,13 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
         title: const Text('GPS đo đất'),
         actions: [
           IconButton(
+            tooltip: satelliteMode ? 'Bản đồ đường phố' : 'Bản đồ vệ tinh',
+            onPressed: () => setState(() => satelliteMode = !satelliteMode),
+            icon: Icon(
+              satelliteMode ? Icons.map_rounded : Icons.satellite_alt_rounded,
+            ),
+          ),
+          IconButton(
             onPressed: undo,
             tooltip: 'Hoàn tác điểm',
             icon: const Icon(Icons.undo),
@@ -180,8 +198,11 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  urlTemplate: satelliteMode
+                      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.nongnghiep.xanh',
+                  tileProvider: NetworkTileProvider(),
                 ),
                 if (points.length >= 3)
                   PolygonLayer(
@@ -261,8 +282,39 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
                 ),
                 Text(
                   '${(area / 10000).toStringAsFixed(4)} ha'
-                  ' • ${(area / 1000).toStringAsFixed(3)} công (1 công = 1.000 m²)',
+                  ' • ${(area / congM2).toStringAsFixed(3)} công',
                   style: const TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  children: [
+                    const Text('Quy ước công:'),
+                    DropdownButton<double>(
+                      value: congM2,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 1000,
+                          child: Text('1.000 m²'),
+                        ),
+                        DropdownMenuItem(
+                          value: 1296,
+                          child: Text('1.296 m²'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => congM2 = value);
+                      },
+                    ),
+                  ],
+                ),
+                Text(
+                  'Chu vi: ${fmt(perimeter)}',
+                  style: const TextStyle(
+                    color: Color(0xFF167A45),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (points.length >= 2)
