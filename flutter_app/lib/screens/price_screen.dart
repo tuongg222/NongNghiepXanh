@@ -171,6 +171,97 @@ class _PriceScreenState extends State<PriceScreen> {
                 ),
               ),
             ),
+            // THONG KE
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const Icon(Icons.inventory_2,
+                              color: Colors.green, size: 28),
+                          const SizedBox(height: 6),
+                          Text('\${prices.length}',
+                              style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold)),
+                          const Text('Mặt hàng'),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const Icon(Icons.show_chart,
+                              color: Colors.blue, size: 28),
+                          const SizedBox(height: 6),
+                          Text(
+                            prices.isEmpty
+                                ? '0'
+                                : (prices.fold<double>(
+                                    0,
+                                    (sum, e) =>
+                                        sum + (e['sell'] as num).toDouble()
+                                        - (e['buy'] as num).toDouble(),
+                                  ) / prices.length).toStringAsFixed(0),
+                            style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const Text('TB chênh lệch/kg'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // BIEU DO
+            if (prices.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('📊 So sánh giá mua / bán',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 220,
+                        child: PriceChart(prices: prices),
+                      ),
+                      const SizedBox(height: 8),
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.circle, color: Colors.blue, size: 10),
+                          SizedBox(width: 5),
+                          Text('Giá mua'),
+                          SizedBox(width: 18),
+                          Icon(Icons.circle, color: Colors.green, size: 10),
+                          SizedBox(width: 5),
+                          Text('Giá bán'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
             FilledButton.icon(
               onPressed: addPrice,
               icon: const Icon(Icons.add),
@@ -244,4 +335,93 @@ class _PriceScreenState extends State<PriceScreen> {
       ),
     );
   }
+}
+
+
+class PriceChart extends StatelessWidget {
+  final List<Map<String, dynamic>> prices;
+  const PriceChart({super.key, required this.prices});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _PricePainter(prices),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _PricePainter extends CustomPainter {
+  final List<Map<String, dynamic>> prices;
+  _PricePainter(this.prices);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (prices.isEmpty) return;
+
+    final values = prices.take(8).toList().reversed.toList();
+    final maxValue = values.fold<double>(
+      1,
+      (m, e) => [
+        m,
+        (e['buy'] as num).toDouble(),
+        (e['sell'] as num).toDouble(),
+      ].reduce((a, b) => a > b ? a : b),
+    );
+
+    final grid = Paint()
+      ..color = Colors.grey.withAlpha(45)
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < 5; i++) {
+      final y = size.height * i / 4;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+
+    final buyPaint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final sellPaint = Paint()
+      ..color = Colors.green
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final buyPath = Path();
+    final sellPath = Path();
+
+    for (int i = 0; i < values.length; i++) {
+      final x = values.length == 1
+          ? size.width / 2
+          : size.width * i / (values.length - 1);
+
+      final b = (values[i]['buy'] as num).toDouble();
+      final s = (values[i]['sell'] as num).toDouble();
+
+      final yBuy = size.height - (b / maxValue * size.height);
+      final ySell = size.height - (s / maxValue * size.height);
+
+      if (i == 0) {
+        buyPath.moveTo(x, yBuy);
+        sellPath.moveTo(x, ySell);
+      } else {
+        buyPath.lineTo(x, yBuy);
+        sellPath.lineTo(x, ySell);
+      }
+
+      canvas.drawCircle(Offset(x, yBuy), 4,
+          Paint()..color = Colors.blue);
+      canvas.drawCircle(Offset(x, ySell), 4,
+          Paint()..color = Colors.green);
+    }
+
+    canvas.drawPath(buyPath, buyPaint);
+    canvas.drawPath(sellPath, sellPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PricePainter oldDelegate) => true;
 }
