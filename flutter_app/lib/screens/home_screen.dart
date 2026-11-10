@@ -8,6 +8,8 @@ import 'field_map_screen.dart';
 import 'login_screen.dart';
 import 'journal_screen.dart';
 import 'price_screen.dart';
+import 'finance_screen.dart';
+import 'season_screen.dart';
 
 const nxGreen = Color(0xFF167A45);
 const nxDark = Color(0xFF103D29);
@@ -320,9 +322,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Mùa vụ',
                           subtitle: 'Theo dõi cây trồng',
                           color: const Color(0xFF8C9F32),
-                          onTap: () => openFeature(
-                            'Quản lý mùa vụ',
-                            'Tạo mùa vụ, ngày gieo, chăm sóc và thu hoạch.',
+                          onTap: () => Navigator.push(
+                            context,
+                            _smoothRoute(const SeasonScreen()),
                           ),
                         ),
                       ),
@@ -359,6 +361,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _FeatureCard(
+                    icon: Icons.account_balance_wallet_rounded,
+                    title: 'Tài chính',
+                    subtitle: 'Chi phí • Lợi nhuận',
+                    color: const Color(0xFF15945A),
+                    large: true,
+                    onTap: () => Navigator.push(
+                      context,
+                      _smoothRoute(const FinanceScreen()),
+                    ),
                   ),
 
                   const SizedBox(height: 22),
