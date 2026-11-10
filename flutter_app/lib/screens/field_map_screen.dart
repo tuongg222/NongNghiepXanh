@@ -17,6 +17,7 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
   final points = <LatLng>[];
   bool locating = false;
   bool satelliteMode = false;
+  int? selectedPoint;
   double congM2 = 1000;
   String fieldName = 'Ruộng của tôi';
 
@@ -100,7 +101,28 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
   }
 
   void addPoint(LatLng p) {
-    setState(() => points.add(p));
+    setState(() {
+      if (selectedPoint != null &&
+          selectedPoint! >= 0 &&
+          selectedPoint! < points.length) {
+        points[selectedPoint!] = p;
+        selectedPoint = null;
+      } else {
+        points.add(p);
+      }
+    });
+  }
+
+  void selectPoint(int index) {
+    setState(() => selectedPoint = index);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Đã chọn điểm ${index + 1}. Chạm bản đồ để đổi vị trí.',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void undo() {
@@ -231,18 +253,36 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
                       point: entry.value,
                       width: 35,
                       height: 35,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${entry.key + 1}',
-                            style: const TextStyle(
+                      child: GestureDetector(
+                        onLongPress: () => selectPoint(entry.key),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          decoration: BoxDecoration(
+                            color: selectedPoint == entry.key
+                                ? Colors.orange
+                                : Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              width: selectedPoint == entry.key ? 4 : 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (selectedPoint == entry.key
+                                        ? Colors.orange
+                                        : Colors.green)
+                                    .withOpacity(.35),
+                                blurRadius: 12,
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${entry.key + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -331,8 +371,8 @@ class _FieldMapScreenState extends State<FieldMapScreen> {
                   }),
                 const SizedBox(height: 12),
                 const Text(
-                  'Chạm bản đồ để thêm điểm ranh giới. '
-                  'Cần tối thiểu 3 điểm để tính diện tích.',
+                  'Chạm bản đồ để thêm điểm. Nhấn giữ điểm để chọn '
+                  'rồi chạm vị trí mới để chỉnh ranh giới.',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(height: 12),
